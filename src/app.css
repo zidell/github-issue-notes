@@ -55,7 +55,7 @@ button, input, textarea { font: inherit; }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
 
 .app-shell { height: 100%; overflow: hidden; background: #171717; }
-.avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%; }
+.avatar { width: 2.25rem; height: 2.25rem; border-radius: 50%; }
 
 .note-workspace { position: relative; height: 100%; display: grid; grid-template-columns: 340px minmax(0, 1fr); overflow: hidden; }
 .note-sidebar { min-width: 0; height: 100%; display: flex; flex-direction: column; border-right: 1px solid #363636; background: #191919; }
@@ -64,7 +64,7 @@ button, input, textarea { font: inherit; }
 .sidebar-heading-title { min-width: 0; display: flex; align-items: baseline; gap: .5rem; }
 .sidebar-heading h1 { margin: 0; font-size: 1rem; font-weight: 650; }
 .sidebar-heading span { color: #888; font-size: .75rem; }
-.sidebar-profile { flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.sidebar-profile { width: 2.25rem; height: 2.25rem; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .sidebar-profile:hover .avatar { box-shadow: 0 0 0 2px #526487; }
 .sidebar-tools { --sidebar-tools-offset: 0px; position: sticky; z-index: 4; top: 0; padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
