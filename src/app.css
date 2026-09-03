@@ -44,7 +44,7 @@ button, input, textarea { font: inherit; }
 .editor-settings { padding: 1rem; border: 1px solid #3a3a3a; border-radius: 5px; }
 .editor-settings legend { float: none; width: auto; margin: 0 0 .75rem; padding: 0 .25rem; color: #bbb; font-size: .85rem; font-weight: 600; }
 .editor-settings .form-label { color: #aaa; font-size: .8rem; }
-.tag-settings-list { max-height: 300px; overflow-y: auto; }
+.tag-settings-list { overflow: visible; }
 .tag-settings-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; margin-bottom: .65rem; padding-bottom: .65rem; border-bottom: 1px solid #353535; }
 .tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; padding: .35rem 0; }
 .tag-settings-row .form-control { min-width: 0; }
@@ -92,8 +92,8 @@ button, input, textarea { font: inherit; }
 .note-row-title { overflow: hidden; margin-bottom: .2rem; color: #e8e8e8; font-size: .92rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: #aaa; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-meta, .reader-meta { color: #777; font-size: .72rem; }
-.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; }
-.note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; opacity: .6; }
+.note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
+.note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; opacity: .6; pointer-events: auto; }
 .note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 35%, white); background: color-mix(in srgb, var(--tag-color) 32%, #242424); }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
@@ -174,4 +174,5 @@ button, input, textarea { font: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+  .spinner-border { animation: var(--bs-spinner-animation-speed) linear infinite var(--bs-spinner-animation-name) !important; }
 }
