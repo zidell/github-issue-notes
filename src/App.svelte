@@ -353,24 +353,30 @@
 
   function noteSaved(savedIssue) {
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
-    selectedIssue = savedIssue;
-    if (activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
+    const savedIssueIsActive = contentRoute?.screen === 'note'
+      && Number(contentRoute.value) === savedIssue.number;
+    if (savedIssueIsActive) selectedIssue = savedIssue;
+    if (savedIssueIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     }
   }
 
   function noteCreated(savedIssue) {
+    const newNoteIsActive = contentRoute?.screen === 'new';
     error = '';
     query = '';
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
     pendingNote = null;
     pendingAllocation = null;
-    selectedIssue = savedIssue;
-    if (activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
+    if (newNoteIsActive) selectedIssue = savedIssue;
+    if (newNoteIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     } else {
-      router.replace(`note.${savedIssue.number}`);
+      const nextStack = routeStack.map((route) => route.screen === 'new'
+        ? `note.${savedIssue.number}`
+        : route.segment);
+      router.navigate(`/${nextStack.join('/')}`);
     }
   }
 

@@ -1,5 +1,5 @@
 <script>
-  import { onDestroy, onMount } from 'svelte';
+  import { afterUpdate, onDestroy, onMount } from 'svelte';
   import TagPicker from './TagPicker.svelte';
   import {
     createAttachmentComment,
@@ -31,6 +31,7 @@
   export let onSaved = () => {};
   export let onCreated = () => {};
   export let onDraftChange = () => {};
+  export let onReady = () => {};
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
@@ -63,6 +64,9 @@
   let draggingFiles = false;
   let reconciledIssueNumber = null;
   let destroyed = false;
+  let wasPaused = paused;
+  let loadingAttachments = Boolean(remoteIssue?.number || allocationPromise);
+  let readyNotified = false;
   let status = archived ? '읽기 전용' : issue ? '저장됨' : '새 노트';
   let error = '';
   let localTimer;
@@ -102,15 +106,34 @@
     localTimer = setInterval(() => {
       if (dirty) persistLocalDraft();
     }, 1000);
-    window.addEventListener('beforeunload', persistBeforeUnload);
+    window.addEventListener('beforeunload', handlePageExit);
+    window.addEventListener('pagehide', handlePageExit);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    if (!remoteIssue?.number && allocationPromise) {
+      allocationPromise.then((allocated) => {
+        if (!allocated?.number) finishInitialLoad();
+      });
+    } else if (!remoteIssue?.number) {
+      finishInitialLoad();
+    }
+  });
+
+  afterUpdate(() => {
+    const becamePaused = paused && !wasPaused;
+    wasPaused = paused;
+    if (becamePaused && dirty) flushRemoteSave();
   });
 
   onDestroy(() => {
-    destroyed = true;
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
-    window.removeEventListener('beforeunload', persistBeforeUnload);
+    window.removeEventListener('beforeunload', handlePageExit);
+    window.removeEventListener('pagehide', handlePageExit);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (dirty) saveRemote(false, true);
+    destroyed = true;
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
   });
 
@@ -143,8 +166,39 @@
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
   }
 
-  function persistBeforeUnload() {
-    if (dirty) persistLocalDraft();
+  function flushRemoteSave(requestOptions = {}) {
+    if (!dirty || archived) return;
+    persistLocalDraft();
+    clearTimeout(remoteTimer);
+    if (saving && requestOptions.keepalive) {
+      saveKeepaliveSnapshot(requestOptions);
+      return;
+    }
+    saveRemote(false, true, requestOptions);
+  }
+
+  function saveKeepaliveSnapshot(requestOptions) {
+    const targetIssue = issue || remoteIssue;
+    const note = currentNote();
+    if (!targetIssue?.number || !note.title) return;
+    updateIssue(token, repo, targetIssue.number, note, requestOptions).catch(() => {
+      // 종료 중 요청이 실패해도 동기 저장된 로컬 초안으로 다음 실행 때 복구한다.
+    });
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'hidden') flushRemoteSave();
+  }
+
+  function handlePageExit() {
+    flushRemoteSave({ keepalive: true });
+  }
+
+  function finishInitialLoad() {
+    loadingAttachments = false;
+    if (readyNotified || destroyed) return;
+    readyNotified = true;
+    onReady();
   }
 
   function changed() {
@@ -200,7 +254,7 @@
     return remoteIssue;
   }
 
-  async function saveRemote(force = false) {
+  async function saveRemote(force = false, allowPaused = false, requestOptions = {}) {
     if (archived) return;
     if (saving) {
       if (force) {
@@ -210,7 +264,7 @@
       return;
     }
     if (!force && !dirty) return;
-    if (paused) {
+    if (paused && !allowPaused) {
       status = '설정 열림 · 저장 대기 중…';
       if (!force) scheduleRemoteSave();
       return;
@@ -241,7 +295,7 @@
       const knownNames = new Set(availableLabels.map((label) => label.name.toLocaleLowerCase()));
       const missingNames = labels.filter((name) => !knownNames.has(name.toLocaleLowerCase()));
       const createdLabels = await Promise.all(
-        missingNames.map((name) => createLabel(token, repo, name))
+        missingNames.map((name) => createLabel(token, repo, name, requestOptions))
       );
       if (createdLabels.length) {
         availableLabels = [...availableLabels, ...createdLabels];
@@ -250,8 +304,8 @@
 
       const targetIssue = issue || await resolveRemoteIssue();
       const saved = targetIssue
-        ? await updateIssue(token, repo, targetIssue.number, note)
-        : await createIssue(token, repo, note);
+        ? await updateIssue(token, repo, targetIssue.number, note, requestOptions)
+        : await createIssue(token, repo, note, requestOptions);
 
       remoteIssue = saved;
       lastRemoteSignature = signature;
@@ -473,6 +527,7 @@
   }
 
   async function reconcileIssueAttachments(issueNumber) {
+    loadingAttachments = true;
     try {
       const [files, comments] = await Promise.all([
         listIssueAttachmentFiles(token, repo, issueNumber),
@@ -514,6 +569,8 @@
       attachments.filter(isImage).forEach(loadPreview);
     } catch (reason) {
       if (!destroyed) error = reason?.message || '첨부 파일 상태를 확인하지 못했습니다.';
+    } finally {
+      if (!destroyed && remoteIssue?.number === issueNumber) finishInitialLoad();
     }
   }
 
@@ -592,7 +649,10 @@
       <i class="bi bi-arrow-left" aria-hidden="true"></i> 목록
     </button>
     <span>{issue ? `#${issue.number}` : '새 노트'}</span>
-    <span class="save-status" class:is-saving={saving}>{status}</span>
+    <span class="save-status" class:is-saving={saving}>
+      {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
+      {status}
+    </span>
     <div class="ms-auto d-flex gap-2">
       {#if !archived && !labels.length}
         <TagPicker
@@ -636,8 +696,8 @@
     class="inline-editor-fields"
     style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight}`}
   >
-    {#if attachments.length}
-      <section class="attachment-section">
+    {#if attachments.length || uploading || deletingPath}
+      <section class="attachment-section" class:is-loading={Boolean(uploading || deletingPath)}>
         <div class="attachment-list">
           {#each attachments as attachment, index (attachment.path)}
             <div class="attachment-item">
@@ -689,6 +749,11 @@
             </label>
           {/if}
         </div>
+        {#if uploading || deletingPath}
+          <div class="attachment-api-overlay" aria-label="첨부파일 처리 중">
+            <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+          </div>
+        {/if}
       </section>
     {/if}
     {#if labels.length}
@@ -741,6 +806,12 @@
       readonly={archived || saving}
     ></textarea>
   </div>
+
+  {#if loadingAttachments}
+    <div class="editor-api-overlay" aria-label="노트 데이터 불러오는 중">
+      <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+    </div>
+  {/if}
 
   {#if viewedAttachment}
     <div

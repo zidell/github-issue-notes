@@ -106,17 +106,19 @@ export async function searchIssues(token, repoInput, state, term, label = '') {
   return issueOnly(data.items);
 }
 
-export function createIssue(token, repoInput, note) {
+export function createIssue(token, repoInput, note, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/issues`, token, {
+    ...requestOptions,
     method: 'POST',
     body: JSON.stringify({ title: note.title, body: note.body, labels: note.labels || [] })
   });
 }
 
-export function updateIssue(token, repoInput, issueNumber, note) {
+export function updateIssue(token, repoInput, issueNumber, note, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/issues/${issueNumber}`, token, {
+    ...requestOptions,
     method: 'PATCH',
     body: JSON.stringify({ title: note.title, body: note.body, labels: note.labels || [] })
   });
@@ -127,10 +129,11 @@ export async function listLabels(token, repoInput) {
   return request(`/repos/${repo}/labels?per_page=100`, token);
 }
 
-export async function createLabel(token, repoInput, name) {
+export async function createLabel(token, repoInput, name, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
   try {
     return await request(`/repos/${repo}/labels`, token, {
+      ...requestOptions,
       method: 'POST',
       body: JSON.stringify({ name, color: '4f46e5' })
     });
