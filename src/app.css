@@ -102,7 +102,7 @@ button, input, textarea { font: inherit; }
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: #171717; }
 .note-detail-layer { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
-.detail-toolbar { height: 46px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .75rem; padding: 0 .85rem; border-bottom: 1px solid #363636; color: #888; font-size: .8rem; background: #1d1d1d; }
+.detail-toolbar { height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: 0 .85rem; border-bottom: 1px solid #363636; color: #888; font-size: .8rem; background: #1d1d1d; }
 .detail-toolbar-start, .detail-toolbar-center, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-center { justify-content: center; white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
@@ -170,7 +170,7 @@ button, input, textarea { font: inherit; }
   .mobile-detail-active .note-sidebar { transform: translateX(-25%); }
   .mobile-detail-active .note-detail { transform: translateX(0); }
   .mobile-back { display: inline-block; }
-  .detail-toolbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: .45rem; padding-inline: .55rem; }
+  .detail-toolbar { gap: .45rem; padding-inline: .55rem; }
   .detail-toolbar-center { overflow: hidden; }
   .detail-toolbar-center .save-status { overflow: hidden; text-overflow: ellipsis; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
