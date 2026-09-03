@@ -97,6 +97,16 @@ npm run build
 
 `dist/` 폴더를 GitHub Pages나 다른 정적 호스팅에 배포할 수 있습니다.
 
+## 테스트
+
+```bash
+npm test
+```
+
+개발 중에 테스트를 계속 실행하려면 `npm run test:watch`, Svelte 정적
+검사는 `npm run check`를 사용합니다. `main` 푸시와 pull request에서는 GitHub
+Actions가 정적 검사, 테스트, 빌드를 자동으로 실행합니다.
+
 ## 라이선스
 
 [MIT License](LICENSE)
