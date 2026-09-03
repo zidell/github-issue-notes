@@ -46,7 +46,7 @@ button, input, textarea { font: inherit; }
 .editor-settings .form-label { color: #aaa; font-size: .8rem; }
 .tag-settings-list { overflow: visible; }
 .tag-settings-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; margin-bottom: .65rem; padding-bottom: .65rem; border-bottom: 1px solid #353535; }
-.tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; padding: .35rem 0; }
+.tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .4rem; padding: .35rem 0; }
 .tag-settings-row .form-control { min-width: 0; }
 .tag-settings-row .btn { white-space: nowrap; }
 .mcp-guide code, .mcp-guide .font-monospace { color: #d8d8d8; }

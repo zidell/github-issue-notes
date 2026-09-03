@@ -46,6 +46,7 @@
   let labelBusy = '';
   let labelMutation = null;
   let labelMutationSequence = 0;
+  let labelRenameDrafts = [];
   let settingsRouteOverride = '';
 
   $: emptyMessage = query
@@ -454,9 +455,9 @@
   }
 
   async function renameRepositoryLabel(label, nextName) {
-    if (labelBusy) return;
+    if (labelBusy) return false;
     const normalizedName = Array.from(nextName.trim()).slice(0, 50).join('');
-    if (!normalizedName || normalizedName === label.name) return;
+    if (!normalizedName || normalizedName === label.name) return true;
     labelBusy = label.name;
     error = '';
     try {
@@ -475,11 +476,43 @@
       if (activeLabel.toLocaleLowerCase() === label.name.toLocaleLowerCase()) {
         rewriteActiveTagRoute(savedLabel.name);
       }
+      return true;
     } catch (reason) {
       error = friendlyError(reason);
+      return false;
     } finally {
       labelBusy = '';
     }
+  }
+
+  async function applyLabelRenameDrafts() {
+    for (const draft of labelRenameDrafts) {
+      const label = repositoryLabels.find((item) => item.id === draft.label.id);
+      if (!label) continue;
+      if (!draft.nextName) {
+        error = `#${label.name} 태그 이름을 비워둘 수 없습니다.`;
+        return false;
+      }
+      if (!await renameRepositoryLabel(label, draft.nextName)) return false;
+    }
+    labelRenameDrafts = [];
+    return true;
+  }
+
+  async function saveConfiguration() {
+    if (topRoute?.screen !== 'settings') {
+      await connect(true);
+      return;
+    }
+
+    error = '';
+    notice = '';
+    appState = 'connecting';
+    if (!await applyLabelRenameDrafts()) {
+      appState = 'ready';
+      return;
+    }
+    await connect(false);
   }
 
   async function createRepositoryLabel(name) {
@@ -503,7 +536,6 @@
 
   async function deleteRepositoryLabel(label) {
     if (labelBusy) return;
-    if (!confirm(`#${label.name} 태그를 저장소에서 완전히 삭제할까요? 모든 노트에서 제거됩니다.`)) return;
     labelBusy = label.name;
     error = '';
     try {
@@ -570,6 +602,7 @@
     };
     error = '';
     notice = '';
+    labelRenameDrafts = [];
     router.push('settings');
   }
 
@@ -585,6 +618,7 @@
       editorLineHeight
     } = settingsSnapshot);
     settingsSnapshot = null;
+    labelRenameDrafts = [];
     error = '';
   }
 
@@ -667,7 +701,7 @@
             <div class="alert alert-success" role="status">{notice}</div>
           {/if}
 
-          <form on:submit|preventDefault={() => connect(true)}>
+          <form on:submit|preventDefault={saveConfiguration}>
             <div class="mb-3">
               <label for="repo" class="form-label fw-semibold">노트 저장소</label>
               <input
@@ -833,7 +867,7 @@
                 labels={repositoryLabels}
                 busy={labelBusy || (appState === 'connecting' ? 'connecting' : '')}
                 onCreate={createRepositoryLabel}
-                onRename={renameRepositoryLabel}
+                onRenameDrafts={(drafts) => { labelRenameDrafts = drafts; }}
                 onDelete={deleteRepositoryLabel}
               />
 

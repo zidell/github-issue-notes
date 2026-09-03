@@ -2,7 +2,7 @@
   export let labels = [];
   export let busy = '';
   export let onCreate = () => {};
-  export let onRename = () => {};
+  export let onRenameDrafts = () => {};
   export let onDelete = () => {};
 
   let drafts = {};
@@ -14,12 +14,19 @@
 
   function updateDraft(name, value) {
     drafts = { ...drafts, [name]: value };
+    onRenameDrafts(labels
+      .map((label) => ({ label, nextName: (name === label.name ? value : draftValue(label.name)).trim() }))
+      .filter(({ label, nextName }) => nextName !== label.name));
   }
 
-  function save(label) {
-    const nextName = draftValue(label.name).trim();
-    if (!nextName || nextName === label.name) return;
-    onRename(label, nextName);
+  function deleteLabel(label) {
+    const { [label.name]: removed, ...remainingDrafts } = drafts;
+    drafts = remainingDrafts;
+    onRenameDrafts(labels
+      .filter((item) => item.id !== label.id)
+      .map((item) => ({ label: item, nextName: draftValue(item.name).trim() }))
+      .filter(({ label: item, nextName }) => nextName !== item.name));
+    onDelete(label);
   }
 
   function create() {
@@ -66,21 +73,14 @@
             on:keydown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
-                save(label);
               }
             }}
           />
           <button
             type="button"
-            class="btn btn-sm btn-outline-secondary"
-            disabled={Boolean(busy) || !draftValue(label.name).trim() || draftValue(label.name).trim() === label.name}
-            on:click={() => save(label)}
-          ><i class="bi bi-pencil" aria-hidden="true"></i> 변경</button>
-          <button
-            type="button"
             class="btn btn-sm btn-outline-danger"
             disabled={Boolean(busy)}
-            on:click={() => onDelete(label)}
+            on:click={() => deleteLabel(label)}
           ><i class="bi bi-trash3" aria-hidden="true"></i> 삭제</button>
         </div>
       {/each}
