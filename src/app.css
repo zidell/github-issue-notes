@@ -61,15 +61,15 @@ button, input, textarea { font: inherit; }
 
 .note-workspace { position: relative; height: 100%; display: grid; grid-template-columns: 340px minmax(0, 1fr); overflow: hidden; }
 .note-sidebar { min-width: 0; height: 100%; display: flex; flex-direction: column; border-right: 1px solid #363636; background: #191919; }
-.sidebar-heading { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; border-bottom: 1px solid #363636; }
+.sidebar-heading { position: relative; z-index: 2; min-height: 58px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; border-bottom: 1px solid #363636; background: #191919; }
 .sidebar-heading-main { min-width: 0; display: flex; align-items: center; gap: .55rem; }
 .sidebar-heading-title { min-width: 0; display: flex; align-items: baseline; gap: .5rem; }
 .sidebar-heading h1 { margin: 0; font-size: 1rem; font-weight: 650; }
 .sidebar-heading span { color: #888; font-size: .75rem; }
 .sidebar-profile { flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .sidebar-profile:hover .avatar { box-shadow: 0 0 0 2px #526487; }
-.sidebar-tools { max-height: 170px; overflow: hidden; padding: .65rem; border-bottom: 1px solid #363636; opacity: 1; transition: max-height 180ms ease, padding 180ms ease, border-color 180ms ease, opacity 120ms ease; }
-.sidebar-tools.is-hidden { max-height: 0; padding-block: 0; border-color: transparent; opacity: 0; pointer-events: none; }
+.sidebar-tools { --sidebar-tools-offset: 0px; position: relative; z-index: 1; flex: none; margin-bottom: calc(-1 * var(--sidebar-tools-offset)); padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform, margin-bottom; }
+.sidebar-tools.is-revealing { transition: transform 180ms ease-out, margin-bottom 180ms ease-out; }
 .state-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search button, .mobile-back { border: 1px solid #474747; color: #ccc; background: #252525; }
 .state-tabs button { min-height: 38px; padding: .45rem .6rem; font-size: .84rem; }

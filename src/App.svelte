@@ -48,7 +48,9 @@
   let labelMutationSequence = 0;
   let labelRenameDrafts = [];
   let settingsRouteOverride = '';
-  let sidebarToolsHidden = false;
+  let sidebarToolsElement;
+  let sidebarToolsOffset = 0;
+  let sidebarToolsRevealing = false;
   let lastSidebarScrollTop = 0;
 
   $: emptyMessage = query
@@ -304,9 +306,18 @@
   function handleSidebarScroll(event) {
     const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
     const delta = nextScrollTop - lastSidebarScrollTop;
-    if (nextScrollTop <= 8) sidebarToolsHidden = false;
-    else if (delta > 6) sidebarToolsHidden = true;
-    else if (delta < -6) sidebarToolsHidden = false;
+    const toolsHeight = sidebarToolsElement?.offsetHeight || 0;
+
+    if (nextScrollTop <= 0) {
+      sidebarToolsOffset = 0;
+      sidebarToolsRevealing = true;
+    } else if (delta > 0) {
+      sidebarToolsRevealing = false;
+      sidebarToolsOffset = Math.min(toolsHeight, sidebarToolsOffset + delta);
+    } else if (delta < 0) {
+      sidebarToolsOffset = 0;
+      sidebarToolsRevealing = true;
+    }
     lastSidebarScrollTop = nextScrollTop;
   }
 
@@ -1020,7 +1031,12 @@
           {/if}
         </div>
 
-        <div class="sidebar-tools" class:is-hidden={sidebarToolsHidden}>
+        <div
+          class="sidebar-tools"
+          class:is-revealing={sidebarToolsRevealing}
+          bind:this={sidebarToolsElement}
+          style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
+        >
           <div class="state-tabs" role="group" aria-label="노트 상태">
             <button class:active={state === 'open'} on:click={() => changeState('open')}>
               <i class="bi bi-journal-text" aria-hidden="true"></i> 노트
