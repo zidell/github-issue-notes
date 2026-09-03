@@ -1,0 +1,246 @@
+:root {
+  font-family:
+    Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #20242a;
+  background: #f5f6f8;
+  font-synthesis: none;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 8% 5%, rgba(68, 92, 255, 0.08), transparent 24rem),
+    #f5f6f8;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.btn-primary {
+  --bs-btn-bg: #445cff;
+  --bs-btn-border-color: #445cff;
+  --bs-btn-hover-bg: #3048e8;
+  --bs-btn-hover-border-color: #3048e8;
+  --bs-btn-active-bg: #263ed6;
+  --bs-btn-active-border-color: #263ed6;
+}
+
+.form-control:focus,
+.form-check-input:focus {
+  border-color: #7182ff;
+  box-shadow: 0 0 0 0.25rem rgba(68, 92, 255, 0.14);
+}
+
+.setup-shell {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
+}
+
+.setup-card {
+  width: min(960px, 100%);
+  border-radius: 1.5rem;
+}
+
+.setup-intro {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 45%),
+    #19234d;
+}
+
+.brand-mark {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 1rem;
+  color: white;
+  background: #445cff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  box-shadow: 0 0.75rem 2rem rgba(68, 92, 255, 0.35);
+}
+
+.brand-mark-sm {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  font-size: 0.65rem;
+  box-shadow: none;
+}
+
+.app-container {
+  max-width: 1180px;
+}
+
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+}
+
+.eyebrow {
+  color: #445cff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.toolbar {
+  border-radius: 1rem;
+}
+
+.toolbar .btn-group .btn.active {
+  color: #fff;
+  background: #20242a;
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.note-card {
+  min-height: 260px;
+  border-radius: 1rem;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.note-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0.75rem 2rem rgba(31, 38, 56, 0.1) !important;
+}
+
+.issue-number {
+  color: #445cff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  border-radius: 2rem;
+  background: #eef0ff;
+}
+
+.note-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-height: 1.65;
+}
+
+.empty-state {
+  border-radius: 1rem;
+}
+
+.empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #445cff;
+  background: #eef0ff;
+  font-size: 1.5rem;
+}
+
+.editor-backdrop {
+  position: fixed;
+  z-index: 1040;
+  inset: 0;
+  background: rgba(14, 18, 31, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.editor-panel {
+  position: fixed;
+  z-index: 1050;
+  top: 0;
+  right: 0;
+  width: min(720px, 100%);
+  height: 100vh;
+  background: white;
+  animation: slide-in 180ms ease-out;
+}
+
+.editor-fields {
+  min-height: 0;
+}
+
+.editor-title:focus,
+.editor-body:focus {
+  box-shadow: none;
+}
+
+.editor-title {
+  border-bottom: 1px solid #e9ecef !important;
+  border-radius: 0;
+}
+
+.editor-body {
+  min-height: 260px;
+  resize: none;
+  line-height: 1.75;
+}
+
+.attachment-bar {
+  padding-top: 0.75rem;
+  border-top: 1px solid #e9ecef;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 991.98px) {
+  .setup-intro {
+    min-height: auto;
+  }
+
+  .notes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 575.98px) {
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-form {
+    flex-wrap: wrap;
+  }
+
+  .search-form input {
+    flex-basis: 100%;
+  }
+
+  .note-card {
+    min-height: 230px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
