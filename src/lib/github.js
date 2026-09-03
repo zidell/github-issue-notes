@@ -1,3 +1,5 @@
+import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
+
 const API_ROOT = 'https://api.github.com';
 
 function headers(token) {
@@ -9,13 +11,14 @@ function headers(token) {
 }
 
 async function request(path, token, options = {}) {
+  const { withResponse = false, ...fetchOptions } = options;
   const response = await fetch(`${API_ROOT}${path}`, {
     cache: 'no-store',
-    ...options,
+    ...fetchOptions,
     headers: {
       ...headers(token),
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options.headers
+      ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
+      ...fetchOptions.headers
     }
   });
 
@@ -35,8 +38,19 @@ async function request(path, token, options = {}) {
     throw error;
   }
 
-  if (response.status === 204) return null;
-  return response.json();
+  if (response.status === 204) return withResponse ? { data: null, response } : null;
+  const data = await response.json();
+  return withResponse ? { data, response } : data;
+}
+
+function nextPagePath(linkHeader) {
+  const nextLink = String(linkHeader || '')
+    .split(',')
+    .find((link) => /rel="next"/.test(link));
+  const url = nextLink?.match(/<([^>]+)>/)?.[1];
+  if (!url) return '';
+  const parsed = new URL(url);
+  return `${parsed.pathname}${parsed.search}`;
 }
 
 function normalizeRepo(value) {
@@ -202,6 +216,51 @@ export async function uploadAttachment(token, repoInput, issueNumber, file) {
     size: result.content.size,
     url: result.content.html_url
   };
+}
+
+export async function createAttachmentComment(token, repoInput, issueNumber, attachment) {
+  const repo = normalizeRepo(repoInput);
+  const comment = await request(`/repos/${repo}/issues/${issueNumber}/comments`, token, {
+    method: 'POST',
+    body: JSON.stringify({ body: composeAttachmentComment(repo, attachment) })
+  });
+  return {
+    ...attachment,
+    commentId: comment.id,
+    commentUrl: comment.html_url
+  };
+}
+
+export async function listIssueAttachmentComments(token, repoInput, issueNumber) {
+  const repo = normalizeRepo(repoInput);
+  const directory = `${issueAttachmentDirectory(issueNumber)}/`;
+  const attachments = [];
+  const visitedPages = new Set();
+  let page = 1;
+  let pagePath = `/repos/${repo}/issues/${issueNumber}/comments?per_page=100`;
+  while (pagePath && !visitedPages.has(pagePath)) {
+    visitedPages.add(pagePath);
+    const { data: comments, response } = await request(pagePath, token, { withResponse: true });
+    attachments.push(
+      ...comments
+        .map(parseAttachmentComment)
+        .filter((attachment) => attachment?.path.startsWith(directory))
+    );
+    const linkedNextPage = nextPagePath(response.headers.get('link'));
+    page += 1;
+    pagePath = linkedNextPage
+      || (comments.length === 100
+        ? `/repos/${repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`
+        : '');
+  }
+  return attachments;
+}
+
+export async function deleteAttachmentComment(token, repoInput, commentId) {
+  const repo = normalizeRepo(repoInput);
+  return request(`/repos/${repo}/issues/comments/${commentId}`, token, {
+    method: 'DELETE'
+  });
 }
 
 export async function listIssueAttachmentFiles(token, repoInput, issueNumber) {

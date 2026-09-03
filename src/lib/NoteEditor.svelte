@@ -1,12 +1,14 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
-  import { composeNoteBody, parseNoteBody } from './attachments.js';
   import TagPicker from './TagPicker.svelte';
   import {
+    createAttachmentComment,
     createIssue,
     createLabel,
     deleteAttachment,
+    deleteAttachmentComment,
     downloadAttachment,
+    listIssueAttachmentComments,
     listIssueAttachmentFiles,
     updateIssue,
     uploadAttachment
@@ -34,17 +36,18 @@
   export let onBack = () => {};
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
+  const MAX_ATTACHMENTS = 30;
   const draftId = issue ? `issue.${issue.number}` : 'new';
-  const parsedIssue = parseNoteBody(issue?.body || '');
 
   let title = issue?.title || '';
-  let body = parsedIssue.body;
-  let attachments = parsedIssue.attachments;
+  let body = issue?.body || '';
+  let attachments = [];
   let remoteIssue = issue || allocatedIssue;
   let labels = (issue?.labels || []).map((label) => label.name);
   let dirty = false;
   let saving = false;
   let uploading = 0;
+  let uploadBatchActive = false;
   let deletingPath = '';
   let previewUrls = {};
   let viewerIndex = -1;
@@ -53,7 +56,7 @@
   let revision = 0;
   let lastRemoteSignature = issue ? noteSignature({
     title: issue.title || '',
-    body: composeNoteBody(parsedIssue.body, parsedIssue.attachments),
+    body: issue.body || '',
     labels: (issue.labels || []).map((label) => label.name)
   }) : '';
   let forceSaveQueued = false;
@@ -90,7 +93,6 @@
       title = recovered.title;
       body = recovered.body;
       labels = Array.isArray(recovered.labels) ? recovered.labels : labels;
-      attachments = Array.isArray(recovered.attachments) ? recovered.attachments : attachments;
       dirty = true;
       status = '로컬 초안 복구됨';
       notifyDraftChange();
@@ -101,7 +103,6 @@
       if (dirty) persistLocalDraft();
     }, 1000);
     window.addEventListener('beforeunload', persistBeforeUnload);
-    attachments.filter(isImage).forEach(loadPreview);
   });
 
   onDestroy(() => {
@@ -129,7 +130,7 @@
     if (!dirty) return;
     const store = draftStore();
     store[repo] ||= {};
-    store[repo][draftId] = { title, body, labels, attachments, savedAt: Date.now() };
+    store[repo][draftId] = { title, body, labels, savedAt: Date.now() };
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
     if (!saving && status !== '로컬 초안 복구됨') status = '로컬에 저장됨';
   }
@@ -163,7 +164,6 @@
       title: resolvedTitle || '새 노트',
       body,
       labels: labels.map((name) => ({ name })),
-      attachments,
       updated_at: new Date().toISOString()
     });
   }
@@ -179,7 +179,7 @@
       : title.trim();
     return {
       title: resolvedTitle,
-      body: composeNoteBody(body, attachments),
+      body,
       labels
     };
   }
@@ -290,10 +290,25 @@
   }
 
   async function uploadFiles(fileList) {
-    const files = Array.from(fileList || []);
+    if (uploadBatchActive) {
+      error = '진행 중인 첨부가 끝난 뒤 다시 시도해주세요.';
+      return;
+    }
+    uploadBatchActive = true;
+    const requestedFiles = Array.from(fileList || []);
+    const remainingSlots = Math.max(0, MAX_ATTACHMENTS - attachments.length);
+    const files = requestedFiles.slice(0, remainingSlots);
+    const limitReached = requestedFiles.length > remainingSlots;
+    if (!files.length) {
+      if (limitReached) error = `첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지 추가할 수 있습니다.`;
+      if (fileInput) fileInput.value = '';
+      uploadBatchActive = false;
+      return;
+    }
     const targetIssue = await resolveRemoteIssue();
     if (!targetIssue?.number) {
       error = '새 노트 번호를 만들지 못해 첨부할 수 없습니다. 본문을 저장한 뒤 다시 시도해주세요.';
+      uploadBatchActive = false;
       return;
     }
     let uploadedAny = false;
@@ -305,26 +320,44 @@
 
       uploading += 1;
       error = '';
+      let storedFile = null;
       try {
-        const attachment = await uploadAttachment(token, repo, targetIssue.number, file);
+        storedFile = await uploadAttachment(token, repo, targetIssue.number, file);
+        const attachment = await createAttachmentComment(
+          token,
+          repo,
+          targetIssue.number,
+          storedFile
+        );
         attachments = [...attachments, attachment];
         previewUrls = { ...previewUrls, [attachment.path]: URL.createObjectURL(file) };
-        changed();
-        persistLocalDraft();
         uploadedAny = true;
       } catch (reason) {
+        if (storedFile) {
+          try {
+            await deleteAttachment(token, repo, storedFile);
+          } catch {
+            // 다음에 이 이슈를 열 때 댓글이 없는 파일을 다시 연결한다.
+          }
+        }
         error = reason?.status === 403
-          ? '첨부하려면 PAT에 Contents: Read and write 권한이 필요합니다.'
+          ? '첨부하려면 PAT에 Issues와 Contents의 Read and write 권한이 필요합니다.'
           : reason?.message || '파일 업로드에 실패했습니다.';
       } finally {
         uploading -= 1;
       }
     }
-    if (uploadedAny) {
+    if (uploadedAny && !issue) {
+      changed();
       clearTimeout(remoteTimer);
       await saveRemote(true);
     }
+    reconciledIssueNumber = null;
+    if (limitReached && !error) {
+      error = `첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지만 추가했습니다.`;
+    }
     if (fileInput) fileInput.value = '';
+    uploadBatchActive = false;
   }
 
   function handlePaste(event) {
@@ -394,24 +427,36 @@
     if (!confirm(`“${attachment.name}” 파일을 저장소에서도 삭제할까요?`)) return;
     deletingPath = attachment.path;
     error = '';
+    let fileDeleted = false;
     try {
-      await deleteAttachment(token, repo, attachment);
+      try {
+        await deleteAttachment(token, repo, attachment);
+      } catch (reason) {
+        if (reason?.status !== 404) throw reason;
+      }
+      fileDeleted = true;
+      if (attachment.commentId) {
+        try {
+          await deleteAttachmentComment(token, repo, attachment.commentId);
+        } catch (reason) {
+          if (reason?.status !== 404) {
+            error = '파일은 삭제했지만 첨부 댓글을 지우지 못했습니다. 다음에 노트를 열 때 다시 정리합니다.';
+          }
+        }
+      }
       if (previewUrls[attachment.path]) URL.revokeObjectURL(previewUrls[attachment.path]);
       const nextPreviewUrls = { ...previewUrls };
       delete nextPreviewUrls[attachment.path];
       previewUrls = nextPreviewUrls;
       const removedIndex = attachments.findIndex((item) => item.path === attachment.path);
       attachments = attachments.filter((item) => item.path !== attachment.path);
-      body = removeLegacyAttachmentMarkdown(body, attachment);
       if (viewerIndex === removedIndex) closeViewer();
       else if (viewerIndex > removedIndex) viewerIndex -= 1;
-      changed();
-      clearTimeout(remoteTimer);
-      await saveRemote(true);
     } catch (reason) {
       error = reason?.message || '첨부 파일을 삭제하지 못했습니다.';
     } finally {
       deletingPath = '';
+      if (fileDeleted) reconciledIssueNumber = null;
     }
   }
 
@@ -428,54 +473,48 @@
   }
 
   async function reconcileIssueAttachments(issueNumber) {
-    const startingRevision = revision;
     try {
-      const files = await listIssueAttachmentFiles(token, repo, issueNumber);
+      const [files, comments] = await Promise.all([
+        listIssueAttachmentFiles(token, repo, issueNumber),
+        listIssueAttachmentComments(token, repo, issueNumber)
+      ]);
       if (destroyed || remoteIssue?.number !== issueNumber) return;
-      if (revision !== startingRevision || uploading || deletingPath) {
+      if (uploading || deletingPath) {
         reconciledIssueNumber = null;
         return;
       }
-      const directory = `.issue-note-assets/issues/${issueNumber}/`;
-      const oldAttachments = attachments.filter((attachment) => !attachment.path.startsWith(directory));
-      const scopedMetadata = new Map(
-        attachments
-          .filter((attachment) => attachment.path.startsWith(directory))
-          .map((attachment) => [attachment.path, attachment])
-      );
-      const reconciled = files.map((file) => {
-        const known = scopedMetadata.get(file.path);
-        const name = known?.name || inferredAttachmentName(file);
-        return {
-          ...known,
+      const filesByPath = new Map(files.map((file) => [file.path, file]));
+      const connectedPaths = new Set();
+      const nextAttachments = [];
+
+      for (const commentAttachment of comments) {
+        const file = filesByPath.get(commentAttachment.path);
+        if (!file || connectedPaths.has(commentAttachment.path)) {
+          await deleteAttachmentComment(token, repo, commentAttachment.commentId);
+          continue;
+        }
+        connectedPaths.add(commentAttachment.path);
+        nextAttachments.push({ ...commentAttachment, ...file });
+      }
+
+      for (const file of files) {
+        if (connectedPaths.has(file.path)) continue;
+        const name = inferredAttachmentName(file);
+        const recovered = await createAttachmentComment(token, repo, issueNumber, {
           ...file,
           name,
-          type: known?.type || inferredAttachmentType(name)
-        };
-      });
-      const nextAttachments = [...oldAttachments, ...reconciled];
-      if (noteSignature({ title: '', body: composeNoteBody('', attachments), labels: [] })
-        === noteSignature({ title: '', body: composeNoteBody('', nextAttachments), labels: [] })) return;
+          type: inferredAttachmentType(name)
+        });
+        connectedPaths.add(file.path);
+        nextAttachments.push(recovered);
+      }
+
+      if (destroyed || remoteIssue?.number !== issueNumber) return;
       attachments = nextAttachments;
-      dirty = true;
-      revision += 1;
-      notifyDraftChange();
-      persistLocalDraft();
-      clearTimeout(remoteTimer);
-      await saveRemote(true);
+      attachments.filter(isImage).forEach(loadPreview);
     } catch (reason) {
       if (!destroyed) error = reason?.message || '첨부 파일 상태를 확인하지 못했습니다.';
     }
-  }
-
-  function removeLegacyAttachmentMarkdown(value, attachment) {
-    if (!attachment.url) return value;
-    const escapedUrl = attachment.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const legacyLink = new RegExp(
-      `!?\\[[^\\]]*\\]\\(${escapedUrl}(?:\\?raw=1)?\\)(?:\\r?\\n)*`,
-      'g'
-    );
-    return value.replace(legacyLink, '').replace(/\n{3,}/g, '\n\n');
   }
 
   function openViewer(index) {
@@ -571,7 +610,7 @@
           type="file"
           id={`inline-attachment-${editorId}`}
           multiple
-          disabled={saving || Boolean(uploading)}
+          disabled={saving || uploadBatchActive}
           on:change={(event) => uploadFiles(event.currentTarget.files)}
         />
         <label class="btn btn-sm btn-outline-secondary" for={`inline-attachment-${editorId}`}>
@@ -630,19 +669,19 @@
               {/if}
             </div>
           {/each}
-          {#if !archived}
+          {#if !archived && attachments.length < MAX_ATTACHMENTS}
             <input
               bind:this={fileInput}
               class="visually-hidden"
               type="file"
               id={`inline-attachment-${editorId}`}
               multiple
-              disabled={saving || Boolean(uploading)}
+              disabled={saving || uploadBatchActive}
               on:change={(event) => uploadFiles(event.currentTarget.files)}
             />
             <label
               class="attachment-add-tile"
-              class:disabled={saving || Boolean(uploading)}
+              class:disabled={saving || uploadBatchActive}
               for={`inline-attachment-${editorId}`}
             >
               <strong><i class="bi bi-plus-lg" aria-hidden="true"></i></strong>

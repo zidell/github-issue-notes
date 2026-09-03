@@ -3,7 +3,6 @@
   import { createStackRouter } from 'spa-stack-router';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
-  import { parseNoteBody } from './lib/attachments.js';
   import {
     createIssue,
     createLabel,
@@ -57,7 +56,7 @@
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = repositoryName(repo);
   $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
-  $: mcpUsagePrompt = `${mcpRepository || 'owner/repository'} 저장소의 GitHub Issues를 노트로 사용해줘. 열린 이슈는 일반 노트, 닫힌 이슈는 휴지통이며 라벨은 태그야. 이슈 본문을 수정할 때 본문 끝의 <!-- issue-note-attachments:... --> 주석이 있으면 첨부 메타데이터이므로 내용과 위치를 그대로 보존해줘.`;
+  $: mcpUsagePrompt = `${mcpRepository || 'owner/repository'} 저장소의 GitHub Issues를 노트로 사용해줘. 열린 이슈는 일반 노트, 닫힌 이슈는 휴지통이며 라벨은 태그야. 각 첨부파일은 .issue-note-assets/issues/{이슈 번호}/ 폴더에 저장되고, 해당 이슈에는 <!-- issue-note-attachment:... --> 마커가 있는 전용 댓글 하나가 연결돼. 이 댓글은 앱이 첨부파일 목록과 GitHub 미리보기를 관리하는 내부 레코드이므로 일반 댓글로 해석하거나 수정·삭제하지 말아줘. 이슈 본문은 첨부 메타데이터 없이 노트 내용만 들어 있어.`;
   $: topRoute = routeStack.at(-1);
   $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
   $: contentRoute = contentRoutes.at(-1);
@@ -599,7 +598,7 @@
   }
 
   function excerpt(body) {
-    const text = parseNoteBody(body).body.replace(/\s+/g, ' ').trim();
+    const text = String(body || '').replace(/\s+/g, ' ').trim();
     return text || '내용이 없습니다.';
   }
 
@@ -862,9 +861,15 @@
                     </li>
                     <li>
                       <strong>issues와 repos 도구 모음을 사용합니다.</strong>
-                      <span>이 브라우저의 PAT는 MCP 클라이언트에 전달되지 않으므로 OAuth 또는 별도 PAT로 인증해야 합니다.</span>
+                      <span>본문·라벨은 이슈에, 첨부파일은 저장소 파일과 전용 이슈 댓글에 저장됩니다. 브라우저 PAT는 공유되지 않으므로 OAuth 또는 별도 PAT로 인증해야 합니다.</span>
                     </li>
                   </ol>
+
+                  <p class="small text-secondary">
+                    첨부 댓글에는 GitHub에서 바로 볼 수 있는 이미지 또는 파일 링크와
+                    <code>&lt;!-- issue-note-attachment:... --&gt;</code> 마커가 함께 들어갑니다.
+                    AI가 노트 본문을 편집할 때 이 전용 댓글은 그대로 두어야 합니다.
+                  </p>
 
                   <label class="form-label small" for="mcp-usage-prompt">AI에게 처음 전달할 안내</label>
                   <textarea id="mcp-usage-prompt" class="form-control form-control-sm mcp-prompt mb-2" readonly value={mcpUsagePrompt}></textarea>

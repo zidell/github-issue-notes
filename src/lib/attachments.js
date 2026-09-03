@@ -1,4 +1,4 @@
-const ATTACHMENT_MARKER = /\n*<!-- issue-note-attachments:([A-Za-z0-9+/=]+) -->\s*$/;
+const ATTACHMENT_COMMENT_MARKER = /\n*<!-- issue-note-attachment:([A-Za-z0-9+/=]+) -->\s*$/;
 
 function encodeBase64(value) {
   const bytes = new TextEncoder().encode(value);
@@ -16,35 +16,49 @@ function decodeBase64(value) {
   return new TextDecoder().decode(bytes);
 }
 
-export function parseNoteBody(value = '') {
-  if (typeof value !== 'string') value = '';
-  const match = value.match(ATTACHMENT_MARKER);
-  if (!match) return { body: value, attachments: [] };
-
-  try {
-    const decoded = JSON.parse(decodeBase64(match[1]));
-    const attachments = Array.isArray(decoded)
-      ? decoded.filter((item) => item?.name && item?.path && item?.sha)
-      : [];
-    return {
-      body: value.slice(0, match.index).replace(/\n+$/, ''),
-      attachments
-    };
-  } catch {
-    return { body: value, attachments: [] };
-  }
+function markdownText(value) {
+  return String(value).replace(/\s+/g, ' ').replace(/[\\[\]]/g, '\\$&');
 }
 
-export function composeNoteBody(body, attachments) {
-  if (!attachments?.length) return body;
-  const metadata = attachments.map(({ name, type, path, sha, size, url }) => ({
-    name,
-    type: type || '',
-    path,
-    sha,
-    size: Number(size) || 0,
-    url: url || ''
-  }));
-  const marker = `<!-- issue-note-attachments:${encodeBase64(JSON.stringify(metadata))} -->`;
-  return body ? `${body.replace(/\n+$/, '')}\n\n${marker}` : marker;
+function encodedPath(value) {
+  return value.split('/').map(encodeURIComponent).join('/');
+}
+
+function isImage(attachment) {
+  return attachment?.type?.startsWith('image/')
+    || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
+}
+
+export function composeAttachmentComment(repo, attachment) {
+  const fileUrl = `https://github.com/${repo}/raw/HEAD/${encodedPath(attachment.path)}`;
+  const label = markdownText(attachment.name);
+  const preview = isImage(attachment)
+    ? `![${label}](${fileUrl})`
+    : `[📎 ${label}](${fileUrl})`;
+  const metadata = {
+    version: 1,
+    name: attachment.name,
+    type: attachment.type || '',
+    path: attachment.path,
+    sha: attachment.sha,
+    size: Number(attachment.size) || 0
+  };
+  return `${preview}\n\n<!-- issue-note-attachment:${encodeBase64(JSON.stringify(metadata))} -->`;
+}
+
+export function parseAttachmentComment(comment) {
+  const match = String(comment?.body || '').match(ATTACHMENT_COMMENT_MARKER);
+  if (!match) return null;
+
+  try {
+    const metadata = JSON.parse(decodeBase64(match[1]));
+    if (metadata?.version !== 1 || !metadata.name || !metadata.path) return null;
+    return {
+      ...metadata,
+      commentId: comment.id,
+      commentUrl: comment.html_url
+    };
+  } catch {
+    return null;
+  }
 }
