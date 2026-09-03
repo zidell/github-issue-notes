@@ -20,6 +20,7 @@
   export let repo;
   export let editorId = 'note';
   export let issue = null;
+  export let refreshRequest = 0;
   export let allocatedIssue = null;
   export let allocationPromise = null;
   export let archived = false;
@@ -50,6 +51,7 @@
   let dirty = false;
   let saving = false;
   let refreshing = false;
+  let backgroundRefreshing = false;
   let uploading = 0;
   let uploadBatchActive = false;
   let deletingPath = '';
@@ -74,6 +76,8 @@
   let localTimer;
   let remoteTimer;
   let fileInput;
+  let mounted = false;
+  let handledRefreshRequest = 0;
 
   $: fontStack = {
     system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif',
@@ -92,6 +96,9 @@
   $: if (labelMutation?.id && labelMutation.id !== appliedLabelMutation) {
     applyLabelMutation(labelMutation);
   }
+  $: if (mounted && !paused && refreshRequest > handledRefreshRequest) {
+    handleBackgroundRefreshRequest();
+  }
 
   onMount(() => {
     const recovered = archived ? null : readDraft();
@@ -104,6 +111,9 @@
       notifyDraftChange();
       scheduleRemoteSave();
     }
+
+    mounted = true;
+    handleBackgroundRefreshRequest();
 
     localTimer = setInterval(() => {
       if (dirty) persistLocalDraft();
@@ -331,20 +341,46 @@
     }
   }
 
-  async function refreshIssue() {
+  function handleBackgroundRefreshRequest() {
+    if (refreshRequest <= handledRefreshRequest) return;
+    handledRefreshRequest = refreshRequest;
+    if (!dirty && !saving) refreshIssue(true);
+  }
+
+  async function refreshIssue(background = false) {
     const targetIssue = issue || remoteIssue;
-    if (!targetIssue?.number || saving || refreshing) return;
-    if (dirty && !confirm('저장되지 않은 로컬 변경을 버리고 GitHub의 최신 내용으로 새로고침할까요?')) {
+    if (!targetIssue?.number || saving || refreshing || backgroundRefreshing) return;
+    if (background && dirty) return;
+    if (!background && dirty && !confirm('저장되지 않은 로컬 변경을 버리고 GitHub의 최신 내용으로 새로고침할까요?')) {
       return;
     }
 
     const hadDirtyChanges = dirty;
-    refreshing = true;
-    error = '';
-    clearTimeout(remoteTimer);
+    const startingRevision = revision;
+    const startingSignature = noteSignature(currentNote());
+    if (background) backgroundRefreshing = true;
+    else {
+      refreshing = true;
+      error = '';
+      clearTimeout(remoteTimer);
+    }
     try {
       const refreshed = await getIssue(token, repo, targetIssue.number);
       if (destroyed) return;
+      if (
+        background
+        && (dirty || revision !== startingRevision || noteSignature(currentNote()) !== startingSignature)
+      ) return;
+      const refreshedSignature = noteSignature({
+        title: refreshed.title || '',
+        body: refreshed.body || '',
+        labels: (refreshed.labels || []).map((label) => label.name)
+      });
+      if (background && refreshedSignature === startingSignature) {
+        remoteIssue = refreshed;
+        lastRemoteSignature = refreshedSignature;
+        return;
+      }
       remoteIssue = refreshed;
       title = refreshed.title || '';
       body = refreshed.body || '';
@@ -353,17 +389,21 @@
       revision += 1;
       lastRemoteSignature = noteSignature({ title, body, labels });
       removeLocalDraft();
-      status = archived ? '읽기 전용 · 새로고침됨' : 'GitHub에서 새로고침됨';
+      status = archived
+        ? `읽기 전용 · ${background ? '최신 내용 반영됨' : '새로고침됨'}`
+        : `GitHub에서 ${background ? '최신 내용 반영됨' : '새로고침됨'}`;
       onRefreshed(refreshed);
 
       loadingAttachments = Number(refreshed.comments || 0) > 0;
       reconciledIssueNumber = null;
     } catch (reason) {
+      if (background) return;
       error = reason?.message || '노트를 새로고침하지 못했습니다.';
       status = hadDirtyChanges ? '새로고침 실패 · 로컬 변경 유지됨' : '새로고침 실패';
       if (hadDirtyChanges) scheduleRemoteSave();
     } finally {
-      refreshing = false;
+      if (background) backgroundRefreshing = false;
+      else refreshing = false;
     }
   }
 
@@ -677,7 +717,7 @@
         <button
           class="detail-refresh-desktop btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
           disabled={saving || refreshing}
-          on:click={refreshIssue}
+          on:click={() => refreshIssue()}
           aria-label="현재 노트 새로고침"
           title="현재 노트 새로고침"
         >
@@ -753,7 +793,7 @@
             type="button"
             class="dropdown-item"
             disabled={saving || refreshing}
-            on:click={refreshIssue}
+            on:click={() => refreshIssue()}
           >
             {#if refreshing}
               <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>

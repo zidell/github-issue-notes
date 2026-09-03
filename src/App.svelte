@@ -56,6 +56,8 @@
   let sidebarToolsOffset = 0;
   let sidebarToolsRevealing = false;
   let lastSidebarScrollTop = 0;
+  let issueRefreshSequence = 0;
+  let issueRefreshRequests = {};
 
   $: emptyMessage = query
     ? '검색 결과가 없습니다.'
@@ -411,6 +413,12 @@
   }
 
   function selectNote(issue) {
+    if (!issue.local) {
+      issueRefreshRequests = {
+        ...issueRefreshRequests,
+        [issue.number]: ++issueRefreshSequence
+      };
+    }
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
   }
 
@@ -1201,6 +1209,7 @@
               {token}
               {repo}
               issue={routeIssue}
+              refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
               allocatedIssue={route.screen === 'new' ? pendingNote?.allocatedIssue : null}
               allocationPromise={route.screen === 'new' ? pendingAllocation : null}
               editorId={route.segment.replace(/[^a-zA-Z0-9_-]/g, '-')}
