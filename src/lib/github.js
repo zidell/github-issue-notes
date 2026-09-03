@@ -1,6 +1,7 @@
 import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
 
 const API_ROOT = 'https://api.github.com';
+const ISSUE_PAGE_SIZE = 30;
 
 function headers(token) {
   return {
@@ -85,7 +86,7 @@ export async function listIssues(token, repoInput, state = 'open', label = '') {
     state,
     sort: 'updated',
     direction: 'desc',
-    per_page: '100'
+    per_page: String(ISSUE_PAGE_SIZE)
   });
   if (label) params.set('labels', label);
   const data = await request(
@@ -100,7 +101,7 @@ export async function searchIssues(token, repoInput, state, term, label = '') {
   const labelQuery = label ? ` label:${JSON.stringify(label)}` : '';
   const query = `${term.trim()} repo:${repo} is:issue is:${state} in:title,body${labelQuery}`;
   const data = await request(
-    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=100`,
+    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${ISSUE_PAGE_SIZE}`,
     token
   );
   return issueOnly(data.items);
