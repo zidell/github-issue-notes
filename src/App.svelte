@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { createStackRouter } from 'spa-stack-router';
   import {
     createIssue,
     listIssues,
@@ -11,18 +12,19 @@
   } from './lib/github.js';
 
   const STORAGE_KEY = 'issue-note.settings.v1';
+  const router = createStackRouter({ mode: 'hashbang', escToBack: true });
 
   let token = '';
   let repo = '';
   let rememberToken = true;
-  let connected = false;
+  let appState = 'booting';
   let user = null;
   let repository = null;
   let issues = [];
+  let selectedIssue = null;
   let state = 'open';
   let query = '';
   let loading = false;
-  let connecting = false;
   let saving = false;
   let error = '';
   let notice = '';
@@ -34,30 +36,123 @@
   let uploading = 0;
   let bodyTextarea;
   let fileInput;
+  let routeStack = [];
+  let activeEditorRoute = '';
 
   $: emptyMessage = query
     ? '검색 결과가 없습니다.'
     : state === 'open'
       ? '아직 작성한 노트가 없습니다.'
       : '휴지통이 비어 있습니다.';
+  $: patCreationUrl = makePatCreationUrl(repo);
+  $: guideRepository = repositoryName(repo);
 
   onMount(() => {
+    router.init();
+    const unsubscribe = router.subscribe((stack) => {
+      routeStack = stack;
+      applyRoute();
+    });
+
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       repo = saved.repo || '';
       token = saved.token || '';
       rememberToken = Boolean(saved.token);
-      if (token && repo) connect(false);
+      if (token && repo) {
+        connect(false, true);
+      } else {
+        appState = 'setup';
+      }
     } catch {
       localStorage.removeItem(STORAGE_KEY);
+      appState = 'setup';
     }
+
+    return () => {
+      unsubscribe();
+      router.destroy();
+    };
   });
+
+  function applyRoute() {
+    const top = routeStack.at(-1);
+    const issueNumber = Number(top?.value);
+
+    if (top?.screen === 'note') {
+      selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
+      editorOpen = false;
+      editingIssue = null;
+      activeEditorRoute = '';
+      return;
+    }
+
+    if (top?.screen === 'edit') {
+      const issue = issues.find((item) => item.number === issueNumber);
+      if (!issue) return;
+      selectedIssue = issue;
+      const signature = `edit.${issue.number}`;
+      if (activeEditorRoute !== signature) {
+        editingIssue = issue;
+        draftTitle = issue.title;
+        draftBody = issue.body || '';
+        editorError = '';
+        activeEditorRoute = signature;
+      }
+      editorOpen = true;
+      return;
+    }
+
+    if (top?.screen === 'new') {
+      if (activeEditorRoute !== 'new') {
+        editingIssue = null;
+        draftTitle = '';
+        draftBody = '';
+        editorError = '';
+        activeEditorRoute = 'new';
+      }
+      editorOpen = true;
+      return;
+    }
+
+    selectedIssue = null;
+    editorOpen = false;
+    editingIssue = null;
+    activeEditorRoute = '';
+  }
 
   function persistSettings(normalizedRepo) {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ repo: normalizedRepo, token: rememberToken ? token : '' })
     );
+  }
+
+  function repositoryName(value) {
+    const cleaned = value
+      .trim()
+      .replace(/^https?:\/\/github\.com\//i, '')
+      .replace(/\.git$/i, '')
+      .replace(/^\/+|\/+$/g, '');
+    const parts = cleaned.split('/');
+    return parts.length === 2 && parts.every(Boolean)
+      ? { owner: parts[0], name: parts[1], fullName: cleaned }
+      : null;
+  }
+
+  function makePatCreationUrl(value) {
+    const selected = repositoryName(value);
+    const url = new URL('https://github.com/settings/personal-access-tokens/new');
+    url.searchParams.set('name', `Issue Note${selected ? ` - ${selected.name}` : ''}`.slice(0, 40));
+    url.searchParams.set(
+      'description',
+      selected ? `Issue Note access for ${selected.fullName}` : 'Issue Note repository access'
+    );
+    url.searchParams.set('expires_in', 'none');
+    url.searchParams.set('issues', 'write');
+    url.searchParams.set('contents', 'write');
+    if (selected) url.searchParams.set('target_name', selected.owner);
+    return url.toString();
   }
 
   function friendlyError(reason) {
@@ -70,10 +165,10 @@
     return reason?.message || '알 수 없는 오류가 발생했습니다.';
   }
 
-  async function connect(showSuccess = true) {
+  async function connect(showSuccess = true, restoring = false) {
     error = '';
     notice = '';
-    connecting = true;
+    appState = restoring ? 'restoring' : 'connecting';
     try {
       const result = await verifyConnection(token.trim(), repo);
       token = token.trim();
@@ -81,14 +176,12 @@
       user = result.user;
       repository = result.repository;
       persistSettings(result.repo);
-      connected = true;
       if (showSuccess) notice = 'GitHub 저장소에 연결했습니다.';
       await loadIssues();
+      appState = 'ready';
     } catch (reason) {
-      connected = false;
+      appState = 'setup';
       error = friendlyError(reason);
-    } finally {
-      connecting = false;
     }
   }
 
@@ -96,9 +189,11 @@
     error = '';
     loading = true;
     try {
-      issues = query.trim()
+      const nextIssues = query.trim()
         ? await searchIssues(token, repo, state, query)
         : await listIssues(token, repo, state);
+      issues = nextIssues;
+      applyRoute();
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
@@ -110,31 +205,28 @@
     if (state === nextState) return;
     state = nextState;
     query = '';
+    selectedIssue = null;
+    if (router.getDepth()) router.popTo(0);
     await loadIssues();
   }
 
   function newNote() {
-    editingIssue = null;
-    draftTitle = '';
-    draftBody = '';
-    editorOpen = true;
     error = '';
-    editorError = '';
+    router.push('new');
   }
 
   function editNote(issue) {
-    editingIssue = issue;
-    draftTitle = issue.title;
-    draftBody = issue.body || '';
-    editorOpen = true;
     error = '';
-    editorError = '';
+    router.push(`edit.${issue.number}`);
+  }
+
+  function selectNote(issue) {
+    router.navigate(`note.${issue.number}`);
   }
 
   function closeEditor() {
     if (saving || uploading) return;
-    editorOpen = false;
-    editingIssue = null;
+    router.pop();
   }
 
   async function saveNote() {
@@ -148,15 +240,20 @@
     try {
       const note = { title: draftTitle.trim(), body: draftBody };
       if (editingIssue) {
-        await updateIssue(token, repo, editingIssue.number, note);
+        const savedIssue = await updateIssue(token, repo, editingIssue.number, note);
+        issues = issues.map((issue) => issue.id === savedIssue.id ? savedIssue : issue);
+        selectedIssue = savedIssue;
         notice = '노트를 저장했습니다.';
+        router.pop();
       } else {
-        await createIssue(token, repo, note);
+        const savedIssue = await createIssue(token, repo, note);
+        query = '';
+        state = 'open';
+        issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
+        selectedIssue = savedIssue;
         notice = '새 노트를 만들었습니다.';
+        router.replace(`note.${savedIssue.number}`);
       }
-      editorOpen = false;
-      editingIssue = null;
-      await loadIssues();
     } catch (reason) {
       editorError = friendlyError(reason);
     } finally {
@@ -228,6 +325,10 @@
     try {
       await setIssueState(token, repo, issue.number, nextState);
       issues = issues.filter((item) => item.id !== issue.id);
+      if (selectedIssue?.id === issue.id) {
+        selectedIssue = null;
+        if (router.getDepth()) router.popTo(0);
+      }
       notice = nextState === 'closed' ? '노트를 휴지통으로 이동했습니다.' : '노트를 복원했습니다.';
     } catch (reason) {
       error = friendlyError(reason);
@@ -235,7 +336,7 @@
   }
 
   function openSettings() {
-    connected = false;
+    appState = 'setup';
     error = '';
     notice = '';
   }
@@ -248,7 +349,9 @@
     user = null;
     repository = null;
     issues = [];
-    connected = false;
+    selectedIssue = null;
+    appState = 'setup';
+    router.navigate('/');
     notice = '브라우저에 저장된 설정을 삭제했습니다.';
   }
 
@@ -267,7 +370,14 @@
   }
 </script>
 
-{#if !connected}
+{#if appState === 'booting' || appState === 'restoring'}
+  <main class="boot-screen">
+    <span class="brand-mark brand-mark-sm">IN</span>
+    <span class="text-secondary small">
+      {appState === 'restoring' ? '노트를 불러오는 중…' : '시작하는 중…'}
+    </span>
+  </main>
+{:else if appState === 'setup' || appState === 'connecting'}
   <main class="setup-shell container py-4 py-md-5">
     <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
       <div class="row g-0">
@@ -306,6 +416,59 @@
               />
             </div>
 
+            <details class="pat-guide mb-4">
+              <summary class="d-flex align-items-center justify-content-between gap-3">
+                <span>
+                  <strong>PAT 발급이 처음인가요?</strong>
+                  <small class="d-block text-secondary mt-1">저장소 하나만 허용하는 방법</small>
+                </span>
+                <span class="guide-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div class="pat-guide-body border-top">
+                <ol class="pat-steps mb-4">
+                  <li>
+                    <strong>GitHub 발급 화면을 엽니다.</strong>
+                    <span>아래 버튼은 만료 없음과 필요한 권한을 미리 입력합니다.</span>
+                  </li>
+                  <li>
+                    <strong>Resource owner를 확인합니다.</strong>
+                    <span>
+                      {guideRepository
+                        ? `${guideRepository.owner} 계정이 선택되어야 합니다.`
+                        : '저장소 소유자 계정을 선택하세요.'}
+                    </span>
+                  </li>
+                  <li>
+                    <strong>Repository access에서 Only select repositories를 고릅니다.</strong>
+                    <span>
+                      {guideRepository
+                        ? `${guideRepository.fullName} 저장소 하나만 선택하세요.`
+                        : '위에 입력할 노트 저장소 하나만 선택하세요.'}
+                    </span>
+                  </li>
+                  <li>
+                    <strong>Repository permissions를 확인합니다.</strong>
+                    <span>Issues와 Contents가 Read and write이면 됩니다.</span>
+                  </li>
+                  <li>
+                    <strong>Generate token을 누르고 즉시 복사합니다.</strong>
+                    <span>생성된 PAT는 GitHub에서 다시 보여주지 않습니다.</span>
+                  </li>
+                </ol>
+                <a
+                  class="btn btn-outline-primary w-100"
+                  href={patCreationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {guideRepository ? `${guideRepository.name}용 PAT 발급하기` : 'PAT 발급 화면 열기'}
+                </a>
+                <p class="small text-secondary mt-2 mb-0">
+                  GitHub 발급 화면에서 저장소 선택은 직접 한 번 확인해야 합니다.
+                </p>
+              </div>
+            </details>
+
             <div class="mb-3">
               <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
               <input
@@ -334,8 +497,8 @@
               <label class="form-check-label" for="remember">이 브라우저에 PAT 기억하기</label>
             </div>
 
-            <button class="btn btn-primary btn-lg w-100" disabled={connecting}>
-              {connecting ? '연결 확인 중…' : '연결하고 시작하기'}
+            <button class="btn btn-primary btn-lg w-100" disabled={appState === 'connecting'}>
+              {appState === 'connecting' ? '연결 확인 중…' : '연결하고 시작하기'}
             </button>
           </form>
 
@@ -349,147 +512,111 @@
     </section>
   </main>
 {:else}
-  <div class="app-shell min-vh-100">
-    <header class="navbar bg-white border-bottom sticky-top">
-      <div class="container-fluid app-container py-2">
-        <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="./">
-          <span class="brand-mark brand-mark-sm">IN</span>
-          Issue Note
-        </a>
-        <div class="d-flex align-items-center gap-2">
-          <a
-            class="btn btn-light btn-sm d-none d-sm-inline-flex"
-            href={repository?.html_url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {repo}
-          </a>
-          <button class="btn btn-outline-secondary btn-sm" on:click={openSettings}>설정</button>
-          {#if user}
-            <img class="avatar" src={user.avatar_url} alt={user.login} />
-          {/if}
-        </div>
+  <div
+    class="app-shell"
+    class:mobile-detail-active={routeStack.at(-1)?.screen === 'note'}
+  >
+    <header class="top-toolbar">
+      <div class="toolbar-brand">
+        <span class="brand-mark brand-mark-sm">IN</span>
+        <strong>Issue Note</strong>
+      </div>
+      <div class="toolbar-actions">
+        <a href={repository?.html_url} target="_blank" rel="noreferrer">{repo}</a>
+        <button class="btn btn-sm btn-outline-secondary" on:click={openSettings}>설정</button>
+        {#if user}<img class="avatar" src={user.avatar_url} alt={user.login} />{/if}
       </div>
     </header>
 
-    <main class="container-fluid app-container py-4 py-md-5">
-      <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
-        <div>
-          <p class="eyebrow mb-1">{state === 'open' ? 'MY NOTES' : 'TRASH'}</p>
-          <h1 class="h2 fw-bold mb-1">{state === 'open' ? '모든 노트' : '휴지통'}</h1>
-          <p class="text-secondary mb-0">
-            {state === 'open' ? '최근 수정한 노트부터 표시합니다.' : '닫힌 이슈를 보관합니다.'}
-          </p>
-        </div>
-        {#if state === 'open'}
-          <button class="btn btn-primary btn-lg px-4" on:click={newNote}>＋ 새 노트</button>
-        {/if}
-      </div>
-
-      {#if error}
-        <div class="alert alert-danger alert-dismissible" role="alert">
-          {error}
-          <button class="btn-close" aria-label="닫기" on:click={() => (error = '')}></button>
-        </div>
-      {/if}
-      {#if notice}
-        <div class="alert alert-success alert-dismissible" role="status">
-          {notice}
-          <button class="btn-close" aria-label="닫기" on:click={() => (notice = '')}></button>
-        </div>
-      {/if}
-
-      <section class="toolbar card border-0 shadow-sm mb-4">
-        <div class="card-body p-2 d-flex flex-column flex-md-row gap-2">
-          <div class="btn-group flex-shrink-0" role="group" aria-label="노트 상태">
-            <button
-              class:active={state === 'open'}
-              class="btn btn-light"
-              on:click={() => changeState('open')}
-            >노트</button>
-            <button
-              class:active={state === 'closed'}
-              class="btn btn-light"
-              on:click={() => changeState('closed')}
-            >휴지통</button>
+    <main class="note-workspace">
+      <aside class="note-sidebar">
+        <div class="sidebar-heading">
+          <div>
+            <h1>{state === 'open' ? '노트' : '휴지통'}</h1>
+            <span>{issues.length}개</span>
           </div>
-          <form class="search-form flex-grow-1 d-flex gap-2" on:submit|preventDefault={loadIssues}>
-            <input
-              class="form-control border-0 bg-light"
-              type="search"
-              bind:value={query}
-              placeholder="제목과 본문 검색"
-              aria-label="노트 검색"
-            />
-            <button class="btn btn-dark px-4" disabled={loading}>검색</button>
+          {#if state === 'open'}
+            <button class="btn btn-sm btn-primary" on:click={newNote}>새 노트</button>
+          {/if}
+        </div>
+
+        <div class="sidebar-tools">
+          <div class="state-tabs" role="group" aria-label="노트 상태">
+            <button class:active={state === 'open'} on:click={() => changeState('open')}>노트</button>
+            <button class:active={state === 'closed'} on:click={() => changeState('closed')}>휴지통</button>
+          </div>
+          <form class="sidebar-search" on:submit|preventDefault={loadIssues}>
+            <input type="search" bind:value={query} placeholder="검색" aria-label="노트 검색" />
+            <button disabled={loading}>검색</button>
             {#if query}
               <button
                 type="button"
-                class="btn btn-light"
                 on:click={() => {
                   query = '';
                   loadIssues();
                 }}
-              >초기화</button>
+              >지우기</button>
             {/if}
           </form>
         </div>
-      </section>
 
-      {#if loading}
-        <div class="empty-state text-center py-5">
-          <div class="spinner-border text-primary mb-3" role="status"></div>
-          <p class="text-secondary">GitHub에서 노트를 가져오는 중…</p>
-        </div>
-      {:else if issues.length === 0}
-        <div class="empty-state card border-0 text-center py-5 px-3">
-          <div class="empty-icon mx-auto mb-3">{state === 'open' ? '✎' : '♲'}</div>
-          <h2 class="h5 fw-bold">{emptyMessage}</h2>
-          {#if state === 'open' && !query}
-            <p class="text-secondary mb-3">첫 번째 생각을 GitHub Issue에 기록해보세요.</p>
-            <div><button class="btn btn-primary" on:click={newNote}>새 노트 작성</button></div>
+        {#if error}
+          <div class="sidebar-message text-danger">{error}</div>
+        {/if}
+        {#if notice}
+          <div class="sidebar-message text-success">{notice}</div>
+        {/if}
+
+        <div class="note-list">
+          {#if loading}
+            <div class="list-status">
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              불러오는 중…
+            </div>
+          {:else if issues.length === 0}
+            <div class="list-status">{emptyMessage}</div>
+          {:else}
+            {#each issues as issue (issue.id)}
+              <button
+                class="note-list-row"
+                class:active={selectedIssue?.id === issue.id}
+                on:click={() => selectNote(issue)}
+              >
+                <span class="note-row-title">{issue.title}</span>
+                <span class="note-row-preview">{excerpt(issue.body)}</span>
+                <span class="note-row-meta">#{issue.number} · {formatDate(issue.updated_at)}</span>
+              </button>
+            {/each}
           {/if}
         </div>
-      {:else}
-        <div class="notes-grid">
-          {#each issues as issue (issue.id)}
-            <article class="note-card card border-0 shadow-sm">
-              <div class="card-body p-4 d-flex flex-column">
-                <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-                  <span class="issue-number">#{issue.number}</span>
-                  <span class="small text-secondary">{formatDate(issue.updated_at)}</span>
-                </div>
-                <h2 class="h5 fw-bold mb-3">{issue.title}</h2>
-                <p class="note-excerpt text-secondary mb-4">{excerpt(issue.body)}</p>
-                <div class="mt-auto d-flex gap-2">
-                  {#if state === 'open'}
-                    <button class="btn btn-sm btn-primary flex-grow-1" on:click={() => editNote(issue)}>
-                      열기
-                    </button>
-                    <button
-                      class="btn btn-sm btn-outline-secondary"
-                      title="휴지통으로 이동"
-                      on:click={() => moveIssue(issue, 'closed')}
-                    >휴지통</button>
-                  {:else}
-                    <button
-                      class="btn btn-sm btn-outline-primary flex-grow-1"
-                      on:click={() => moveIssue(issue, 'open')}
-                    >복원</button>
-                    <a
-                      class="btn btn-sm btn-light"
-                      href={issue.html_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >GitHub</a>
-                  {/if}
-                </div>
-              </div>
-            </article>
-          {/each}
-        </div>
-      {/if}
+      </aside>
+
+      <section class="note-detail">
+        {#if selectedIssue}
+          <div class="detail-toolbar">
+            <button class="mobile-back" on:click={() => router.pop()} aria-label="목록으로 돌아가기">‹ 목록</button>
+            <span>#{selectedIssue.number}</span>
+            <div class="ms-auto d-flex gap-2">
+              {#if state === 'open'}
+                <button class="btn btn-sm btn-outline-secondary" on:click={() => editNote(selectedIssue)}>수정</button>
+                <button class="btn btn-sm btn-outline-secondary" on:click={() => moveIssue(selectedIssue, 'closed')}>휴지통</button>
+              {:else}
+                <button class="btn btn-sm btn-outline-secondary" on:click={() => moveIssue(selectedIssue, 'open')}>복원</button>
+              {/if}
+              <a class="btn btn-sm btn-outline-secondary" href={selectedIssue.html_url} target="_blank" rel="noreferrer">GitHub</a>
+            </div>
+          </div>
+          <article class="note-reader">
+            <h2>{selectedIssue.title}</h2>
+            <div class="reader-meta">마지막 수정 {formatDate(selectedIssue.updated_at)}</div>
+            <div class="note-body">{selectedIssue.body || '내용이 없습니다.'}</div>
+          </article>
+        {:else}
+          <div class="detail-empty">
+            <p>왼쪽 목록에서 노트를 선택하세요.</p>
+          </div>
+        {/if}
+      </section>
     </main>
   </div>
 {/if}

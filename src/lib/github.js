@@ -10,6 +10,7 @@ function headers(token) {
 
 async function request(path, token, options = {}) {
   const response = await fetch(`${API_ROOT}${path}`, {
+    cache: 'no-store',
     ...options,
     headers: {
       ...headers(token),
