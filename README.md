@@ -4,6 +4,18 @@ GitHub Issues를 데이터 저장소로 사용하는 서버 없는 Svelte 노트
 
 **데모:** [note.gitools.net](https://note.gitools.net)
 
+## 화면
+
+### 데스크톱
+
+![Issue Note 데스크톱 화면](docs/screenshots/desktop.png)
+
+### 모바일
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Issue Note 모바일 편집 화면" width="390">
+</p>
+
 ## 시작하기
 
 ```bash
