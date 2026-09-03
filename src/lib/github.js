@@ -171,13 +171,18 @@ function safeFileName(name) {
     .replace(/^-|-$/g, '') || 'attachment';
 }
 
-export async function uploadAttachment(token, repoInput, file) {
+function issueAttachmentDirectory(issueNumber) {
+  const normalizedNumber = Number(issueNumber);
+  if (!Number.isInteger(normalizedNumber) || normalizedNumber <= 0) {
+    throw new Error('첨부하기 전에 이슈 번호가 필요합니다.');
+  }
+  return `.issue-note-assets/issues/${normalizedNumber}`;
+}
+
+export async function uploadAttachment(token, repoInput, issueNumber, file) {
   const repo = normalizeRepo(repoInput);
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
   const unique = crypto.randomUUID();
-  const path = `.issue-note-assets/${year}/${month}/${unique}-${safeFileName(file.name)}`;
+  const path = `${issueAttachmentDirectory(issueNumber)}/${unique}-${safeFileName(file.name)}`;
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const content = arrayBufferToBase64(await file.arrayBuffer());
 
@@ -197,6 +202,27 @@ export async function uploadAttachment(token, repoInput, file) {
     size: result.content.size,
     url: result.content.html_url
   };
+}
+
+export async function listIssueAttachmentFiles(token, repoInput, issueNumber) {
+  const repo = normalizeRepo(repoInput);
+  const directory = issueAttachmentDirectory(issueNumber);
+  const encodedPath = directory.split('/').map(encodeURIComponent).join('/');
+  try {
+    const result = await request(`/repos/${repo}/contents/${encodedPath}`, token);
+    return Array.isArray(result)
+      ? result.filter((item) => item.type === 'file').map((item) => ({
+          name: item.name,
+          path: item.path,
+          sha: item.sha,
+          size: item.size,
+          url: item.html_url
+        }))
+      : [];
+  } catch (reason) {
+    if (reason?.status === 404) return [];
+    throw reason;
+  }
 }
 
 export async function downloadAttachment(token, repoInput, attachment) {

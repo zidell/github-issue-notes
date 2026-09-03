@@ -19,7 +19,7 @@ GitHub에서 fine-grained personal access token을 만들고 다음 권한만 �
 PAT와 저장소 설정은 사용자의 브라우저에만 저장되며, API 요청은 브라우저에서
 `api.github.com`으로 직접 전송됩니다.
 
-첨부 파일은 같은 저장소의 `.issue-note-assets/` 폴더에 저장됩니다. 이슈 본문에는
+첨부 파일은 같은 저장소의 `.issue-note-assets/issues/{이슈 번호}/` 폴더에 저장됩니다. 이슈 본문에는
 화면에 노출하지 않는 첨부 메타데이터만 기록하고, 앱에서는 편집기 상단 목록과
 이미지 뷰어로 표시합니다. 파일 하나의 앱 내 업로드 제한은 10MB입니다.
 

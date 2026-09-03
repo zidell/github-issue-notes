@@ -7,6 +7,7 @@
     createLabel,
     deleteAttachment,
     downloadAttachment,
+    listIssueAttachmentFiles,
     updateIssue,
     uploadAttachment
   } from './github.js';
@@ -15,6 +16,8 @@
   export let repo;
   export let editorId = 'note';
   export let issue = null;
+  export let allocatedIssue = null;
+  export let allocationPromise = null;
   export let archived = false;
   export let titleMode = 'first-line';
   export let font = 'system';
@@ -37,6 +40,7 @@
   let title = issue?.title || '';
   let body = parsedIssue.body;
   let attachments = parsedIssue.attachments;
+  let remoteIssue = issue || allocatedIssue;
   let labels = (issue?.labels || []).map((label) => label.name);
   let dirty = false;
   let saving = false;
@@ -54,6 +58,8 @@
   }) : '';
   let forceSaveQueued = false;
   let draggingFiles = false;
+  let reconciledIssueNumber = null;
+  let destroyed = false;
   let status = archived ? '읽기 전용' : issue ? '저장됨' : '새 노트';
   let error = '';
   let localTimer;
@@ -67,6 +73,13 @@
     mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
   }[font] || 'sans-serif';
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
+  $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
+    remoteIssue = allocatedIssue;
+  }
+  $: if (remoteIssue?.number && reconciledIssueNumber !== remoteIssue.number) {
+    reconciledIssueNumber = remoteIssue.number;
+    reconcileIssueAttachments(remoteIssue.number);
+  }
   $: if (labelMutation?.id && labelMutation.id !== appliedLabelMutation) {
     applyLabelMutation(labelMutation);
   }
@@ -92,6 +105,7 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
@@ -160,7 +174,9 @@
   }
 
   function currentNote() {
-    const resolvedTitle = titleMode === 'first-line' ? automaticTitle(body) : title.trim();
+    const resolvedTitle = titleMode === 'first-line'
+      ? automaticTitle(body) || (attachments.length ? '첨부 노트' : '')
+      : title.trim();
     return {
       title: resolvedTitle,
       body: composeNoteBody(body, attachments),
@@ -174,6 +190,14 @@
       body: note.body,
       labels: note.labels
     });
+  }
+
+  async function resolveRemoteIssue() {
+    if (remoteIssue?.number) return remoteIssue;
+    if (!allocationPromise) return null;
+    const allocated = await allocationPromise;
+    if (allocated?.number) remoteIssue = allocated;
+    return remoteIssue;
   }
 
   async function saveRemote(force = false) {
@@ -224,10 +248,12 @@
         onLabelsAvailable(createdLabels);
       }
 
-      const saved = issue
-        ? await updateIssue(token, repo, issue.number, note)
+      const targetIssue = issue || await resolveRemoteIssue();
+      const saved = targetIssue
+        ? await updateIssue(token, repo, targetIssue.number, note)
         : await createIssue(token, repo, note);
 
+      remoteIssue = saved;
       lastRemoteSignature = signature;
       if (issue) onSaved(saved);
       if (savingRevision === revision && noteSignature(currentNote()) === signature) {
@@ -265,6 +291,12 @@
 
   async function uploadFiles(fileList) {
     const files = Array.from(fileList || []);
+    const targetIssue = await resolveRemoteIssue();
+    if (!targetIssue?.number) {
+      error = '새 노트 번호를 만들지 못해 첨부할 수 없습니다. 본문을 저장한 뒤 다시 시도해주세요.';
+      return;
+    }
+    let uploadedAny = false;
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
         error = `“${file.name}”은 10MB를 초과하여 올리지 않았습니다.`;
@@ -274,10 +306,12 @@
       uploading += 1;
       error = '';
       try {
-        const attachment = await uploadAttachment(token, repo, file);
+        const attachment = await uploadAttachment(token, repo, targetIssue.number, file);
         attachments = [...attachments, attachment];
         previewUrls = { ...previewUrls, [attachment.path]: URL.createObjectURL(file) };
         changed();
+        persistLocalDraft();
+        uploadedAny = true;
       } catch (reason) {
         error = reason?.status === 403
           ? '첨부하려면 PAT에 Contents: Read and write 권한이 필요합니다.'
@@ -285,6 +319,10 @@
       } finally {
         uploading -= 1;
       }
+    }
+    if (uploadedAny) {
+      clearTimeout(remoteTimer);
+      await saveRemote(true);
     }
     if (fileInput) fileInput.value = '';
   }
@@ -368,10 +406,65 @@
       if (viewerIndex === removedIndex) closeViewer();
       else if (viewerIndex > removedIndex) viewerIndex -= 1;
       changed();
+      clearTimeout(remoteTimer);
+      await saveRemote(true);
     } catch (reason) {
       error = reason?.message || '첨부 파일을 삭제하지 못했습니다.';
     } finally {
       deletingPath = '';
+    }
+  }
+
+  function inferredAttachmentName(file) {
+    return file.name.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-/i, '');
+  }
+
+  function inferredAttachmentType(name) {
+    const extension = name.split('.').pop()?.toLocaleLowerCase();
+    return {
+      avif: 'image/avif', gif: 'image/gif', jpeg: 'image/jpeg', jpg: 'image/jpeg',
+      png: 'image/png', svg: 'image/svg+xml', webp: 'image/webp'
+    }[extension] || 'application/octet-stream';
+  }
+
+  async function reconcileIssueAttachments(issueNumber) {
+    const startingRevision = revision;
+    try {
+      const files = await listIssueAttachmentFiles(token, repo, issueNumber);
+      if (destroyed || remoteIssue?.number !== issueNumber) return;
+      if (revision !== startingRevision || uploading || deletingPath) {
+        reconciledIssueNumber = null;
+        return;
+      }
+      const directory = `.issue-note-assets/issues/${issueNumber}/`;
+      const oldAttachments = attachments.filter((attachment) => !attachment.path.startsWith(directory));
+      const scopedMetadata = new Map(
+        attachments
+          .filter((attachment) => attachment.path.startsWith(directory))
+          .map((attachment) => [attachment.path, attachment])
+      );
+      const reconciled = files.map((file) => {
+        const known = scopedMetadata.get(file.path);
+        const name = known?.name || inferredAttachmentName(file);
+        return {
+          ...known,
+          ...file,
+          name,
+          type: known?.type || inferredAttachmentType(name)
+        };
+      });
+      const nextAttachments = [...oldAttachments, ...reconciled];
+      if (noteSignature({ title: '', body: composeNoteBody('', attachments), labels: [] })
+        === noteSignature({ title: '', body: composeNoteBody('', nextAttachments), labels: [] })) return;
+      attachments = nextAttachments;
+      dirty = true;
+      revision += 1;
+      notifyDraftChange();
+      persistLocalDraft();
+      clearTimeout(remoteTimer);
+      await saveRemote(true);
+    } catch (reason) {
+      if (!destroyed) error = reason?.message || '첨부 파일 상태를 확인하지 못했습니다.';
     }
   }
 

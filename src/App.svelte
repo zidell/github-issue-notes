@@ -5,6 +5,7 @@
   import TagSettings from './lib/TagSettings.svelte';
   import { parseNoteBody } from './lib/attachments.js';
   import {
+    createIssue,
     createLabel,
     listIssues,
     listLabels,
@@ -29,6 +30,7 @@
   let repositoryLabels = [];
   let selectedIssue = null;
   let pendingNote = null;
+  let pendingAllocation = null;
   let state = 'open';
   let query = '';
   let activeLabel = '';
@@ -289,18 +291,49 @@
     error = '';
     const hadQuery = Boolean(query.trim());
     query = '';
-    pendingNote ||= {
-      id: 'local-new-note',
-      number: null,
-      title: '새 노트',
-      body: '',
-      labels: activeLabel ? [{ name: activeLabel }] : [],
-      updated_at: new Date().toISOString(),
-      local: true
-    };
+    if (!pendingNote) {
+      pendingNote = {
+        id: 'local-new-note',
+        number: null,
+        title: '새 노트',
+        body: '',
+        labels: activeLabel ? [{ name: activeLabel }] : [],
+        updated_at: new Date().toISOString(),
+        local: true,
+        allocation: 'creating'
+      };
+      pendingAllocation = allocatePendingIssue(pendingNote);
+    }
     selectedIssue = pendingNote;
     router.navigate('new');
     if (hadQuery) loadIssues();
+  }
+
+  async function allocatePendingIssue(localNote) {
+    try {
+      const created = await createIssue(token, repo, {
+        title: '새 노트',
+        body: '',
+        labels: localNote.labels.map((label) => label.name)
+      });
+      if (pendingNote === localNote || pendingNote?.id === localNote.id) {
+        pendingNote = {
+          ...pendingNote,
+          number: created.number,
+          allocatedIssue: created,
+          allocation: 'ready'
+        };
+        if (isNewRoute) selectedIssue = pendingNote;
+      }
+      return created;
+    } catch (reason) {
+      if (pendingNote === localNote || pendingNote?.id === localNote.id) {
+        pendingNote = { ...pendingNote, allocation: 'failed' };
+        if (isNewRoute) selectedIssue = pendingNote;
+      }
+      error = `새 노트 번호를 만들지 못했습니다. ${friendlyError(reason)}`;
+      return null;
+    }
   }
 
   function selectNote(issue) {
@@ -316,10 +349,12 @@
   }
 
   function noteCreated(savedIssue) {
+    error = '';
     query = '';
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
     pendingNote = null;
+    pendingAllocation = null;
     selectedIssue = savedIssue;
     if (activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
@@ -915,6 +950,8 @@
               {token}
               {repo}
               issue={routeIssue}
+              allocatedIssue={route.screen === 'new' ? pendingNote?.allocatedIssue : null}
+              allocationPromise={route.screen === 'new' ? pendingAllocation : null}
               editorId={route.segment.replace(/[^a-zA-Z0-9_-]/g, '-')}
               archived={state === 'closed'}
               {titleMode}
