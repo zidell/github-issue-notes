@@ -48,6 +48,8 @@
   let labelMutationSequence = 0;
   let labelRenameDrafts = [];
   let settingsRouteOverride = '';
+  let sidebarToolsHidden = false;
+  let lastSidebarScrollTop = 0;
 
   $: emptyMessage = query
     ? '검색 결과가 없습니다.'
@@ -297,6 +299,15 @@
     const labelWillChange = Boolean(activeLabel);
     if (router.getDepth()) router.navigate('/');
     if (!labelWillChange) await loadIssues();
+  }
+
+  function handleSidebarScroll(event) {
+    const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
+    const delta = nextScrollTop - lastSidebarScrollTop;
+    if (nextScrollTop <= 8) sidebarToolsHidden = false;
+    else if (delta > 6) sidebarToolsHidden = true;
+    else if (delta < -6) sidebarToolsHidden = false;
+    lastSidebarScrollTop = nextScrollTop;
   }
 
   function newNote() {
@@ -1009,7 +1020,7 @@
           {/if}
         </div>
 
-        <div class="sidebar-tools">
+        <div class="sidebar-tools" class:is-hidden={sidebarToolsHidden}>
           <div class="state-tabs" role="group" aria-label="노트 상태">
             <button class:active={state === 'open'} on:click={() => changeState('open')}>
               <i class="bi bi-journal-text" aria-hidden="true"></i> 노트
@@ -1060,7 +1071,7 @@
         {/if}
 
         <div class="note-list" class:is-loading={loading}>
-          <div class="note-list-scroll">
+          <div class="note-list-scroll" on:scroll={handleSidebarScroll}>
             {#if !loading && visibleIssues.length === 0}
               <div class="list-status">{emptyMessage}</div>
             {:else}
@@ -1078,7 +1089,10 @@
                   {#if titleMode === 'separate'}
                     <span class="note-row-title">{issue.title}</span>
                   {/if}
-                  <span class="note-row-preview">{excerpt(issue.body)}</span>
+                  <span
+                    class="note-row-preview"
+                    class:auto-title-preview={titleMode === 'first-line'}
+                  >{excerpt(issue.body)}</span>
                   <span class="note-row-meta">
                     {issue.local ? '로컬 초안' : `#${issue.number} · ${formatDate(issue.updated_at)}`}
                   </span>

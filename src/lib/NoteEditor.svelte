@@ -679,7 +679,7 @@
       </button>
       {#if issue}
         <button
-          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+          class="detail-refresh-desktop btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
           disabled={saving || refreshing}
           on:click={refreshIssue}
           aria-label="현재 노트 새로고침"
@@ -701,7 +701,18 @@
         {status}
       </span>
     </div>
-    <div class="detail-toolbar-actions">
+    {#if !archived && !attachments.length}
+      <input
+        bind:this={fileInput}
+        class="visually-hidden"
+        type="file"
+        id={`inline-attachment-${editorId}`}
+        multiple
+        disabled={saving || refreshing || uploadBatchActive}
+        on:change={(event) => uploadFiles(event.currentTarget.files)}
+      />
+    {/if}
+    <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
       {#if !archived && !labels.length}
         <TagPicker
           toolbar
@@ -712,15 +723,6 @@
         />
       {/if}
       {#if !archived && !attachments.length}
-        <input
-          bind:this={fileInput}
-          class="visually-hidden"
-          type="file"
-          id={`inline-attachment-${editorId}`}
-          multiple
-          disabled={saving || refreshing || uploadBatchActive}
-          on:change={(event) => uploadFiles(event.currentTarget.files)}
-        />
         <label class="btn btn-sm btn-outline-secondary" for={`inline-attachment-${editorId}`}>
           <i class="bi bi-paperclip" aria-hidden="true"></i>
           {uploading ? `업로드 중 (${uploading})` : '첨부'}
@@ -739,6 +741,65 @@
           <i class="bi bi-github" aria-hidden="true"></i> GitHub
         </a>
       {/if}
+    </div>
+    <div class="dropdown detail-toolbar-more">
+      <button
+        class="btn btn-sm btn-outline-secondary"
+        type="button"
+        data-bs-toggle="dropdown"
+        data-bs-auto-close="outside"
+        aria-expanded="false"
+        aria-label="노트 작업 더보기"
+      ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
+      <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+        {#if issue}
+          <button
+            type="button"
+            class="dropdown-item"
+            disabled={saving || refreshing}
+            on:click={refreshIssue}
+          >
+            {#if refreshing}
+              <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+            {:else}
+              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            {/if}
+            갱신
+          </button>
+          <div class="dropdown-divider"></div>
+        {/if}
+        {#if !archived && !labels.length}
+          <div class="detail-toolbar-more-tag">
+            <TagPicker
+              toolbar
+              {availableLabels}
+              selectedLabels={labels}
+              disabled={saving || refreshing}
+              onSelect={addTag}
+            />
+          </div>
+        {/if}
+        {#if !archived && !attachments.length}
+          <label class="dropdown-item" for={`inline-attachment-${editorId}`}>
+            <i class="bi bi-paperclip" aria-hidden="true"></i>
+            {uploading ? `업로드 중 (${uploading})` : '첨부'}
+          </label>
+        {/if}
+        {#if issue}
+          <button
+            type="button"
+            class="dropdown-item"
+            disabled={saving || refreshing}
+            on:click={() => onMove(issue)}
+          >
+            <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
+            {archived ? '복원' : '삭제'}
+          </button>
+          <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
+            <i class="bi bi-github" aria-hidden="true"></i> GitHub
+          </a>
+        {/if}
+      </div>
     </div>
   </div>
 

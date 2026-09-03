@@ -66,7 +66,8 @@ button, input, textarea { font: inherit; }
 .sidebar-heading span { color: #888; font-size: .75rem; }
 .sidebar-profile { flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .sidebar-profile:hover .avatar { box-shadow: 0 0 0 2px #526487; }
-.sidebar-tools { padding: .65rem; border-bottom: 1px solid #363636; }
+.sidebar-tools { max-height: 170px; overflow: hidden; padding: .65rem; border-bottom: 1px solid #363636; opacity: 1; transition: max-height 180ms ease, padding 180ms ease, border-color 180ms ease, opacity 120ms ease; }
+.sidebar-tools.is-hidden { max-height: 0; padding-block: 0; border-color: transparent; opacity: 0; pointer-events: none; }
 .state-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search button, .mobile-back { border: 1px solid #474747; color: #ccc; background: #252525; }
 .state-tabs button { padding: .35rem .5rem; font-size: .8rem; }
@@ -82,7 +83,7 @@ button, input, textarea { font: inherit; }
 .sidebar-message { padding: .55rem .75rem; border-bottom: 1px solid #363636; background: #202020; font-size: .8rem; }
 
 .note-list { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.note-list-scroll { height: 100%; overflow-y: auto; }
+.note-list-scroll { height: 100%; overflow-y: auto; scroll-behavior: smooth; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .note-list-row { position: relative; width: 100%; display: block; padding: .75rem; border: 0; border-bottom: 1px solid #303030; text-align: left; background: #1b1b1b; }
 .note-list-row:hover { background: #242424; }
 .note-list-row.active { background: #202b40; box-shadow: inset 3px 0 #3b82f6; }
@@ -109,6 +110,7 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-center { justify-content: center; white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
+.detail-toolbar-more { display: none; }
 .mobile-back { display: none; padding: .25rem .5rem; border-radius: 4px; }
 .inline-editor { position: relative; height: 100%; display: flex; flex-direction: column; }
 .save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; }
@@ -173,12 +175,24 @@ button, input, textarea { font: inherit; }
   .mobile-detail-active .note-detail { transform: translateX(0); }
   .mobile-back { display: inline-block; }
   .detail-toolbar { gap: .45rem; padding-inline: .55rem; }
+  .detail-toolbar-start { flex: 1; }
   .detail-toolbar-center { overflow: hidden; }
   .detail-toolbar-center .save-status { overflow: hidden; text-overflow: ellipsis; }
+  .detail-refresh-desktop, .detail-toolbar-actions-desktop { display: none !important; }
+  .detail-toolbar-more { display: block; flex: 1; text-align: right; }
+  .detail-toolbar-more > .btn { min-width: 32px; }
+  .detail-toolbar-more .dropdown-menu { min-width: 10rem; padding-block: .35rem; text-align: left; }
+  .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; cursor: pointer; font-size: .85rem; }
+  .detail-toolbar-more .dropdown-item i, .detail-toolbar-more .dropdown-item .spinner-border { width: 1rem; flex: none; text-align: center; }
+  .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: .85rem; text-align: left; }
+  .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
+  .detail-toolbar-more-tag .tag-dropdown { right: calc(100% + .35rem); top: 0; left: auto; }
+  .note-row-preview.auto-title-preview { color: #e8e8e8; font-size: .86rem; font-weight: 500; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+  .note-list-scroll { scroll-behavior: auto; }
   .spinner-border { animation: var(--bs-spinner-animation-speed) linear infinite var(--bs-spinner-animation-name) !important; }
 }
