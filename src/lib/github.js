@@ -107,6 +107,11 @@ export async function searchIssues(token, repoInput, state, term, label = '') {
   return issueOnly(data.items);
 }
 
+export function getIssue(token, repoInput, issueNumber) {
+  const repo = normalizeRepo(repoInput);
+  return request(`/repos/${repo}/issues/${issueNumber}`, token);
+}
+
 export function createIssue(token, repoInput, note, requestOptions = {}) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/issues`, token, {

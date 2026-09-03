@@ -8,6 +8,7 @@
     deleteAttachment,
     deleteAttachmentComment,
     downloadAttachment,
+    getIssue,
     listIssueAttachmentComments,
     listIssueAttachmentFiles,
     updateIssue,
@@ -31,6 +32,7 @@
   export let onSaved = () => {};
   export let onCreated = () => {};
   export let onDraftChange = () => {};
+  export let onRefreshed = () => {};
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
@@ -46,6 +48,7 @@
   let labels = (issue?.labels || []).map((label) => label.name);
   let dirty = false;
   let saving = false;
+  let refreshing = false;
   let uploading = 0;
   let uploadBatchActive = false;
   let deletingPath = '';
@@ -160,6 +163,7 @@
   function flushRemoteSave(requestOptions = {}) {
     if (!dirty || archived) return;
     persistLocalDraft();
+    if (refreshing) return;
     clearTimeout(remoteTimer);
     if (saving && requestOptions.keepalive) {
       saveKeepaliveSnapshot(requestOptions);
@@ -323,6 +327,42 @@
         clearTimeout(remoteTimer);
         saveRemote(true);
       }
+    }
+  }
+
+  async function refreshIssue() {
+    const targetIssue = issue || remoteIssue;
+    if (!targetIssue?.number || saving || refreshing) return;
+    if (dirty && !confirm('저장되지 않은 로컬 변경을 버리고 GitHub의 최신 내용으로 새로고침할까요?')) {
+      return;
+    }
+
+    const hadDirtyChanges = dirty;
+    refreshing = true;
+    error = '';
+    clearTimeout(remoteTimer);
+    try {
+      const refreshed = await getIssue(token, repo, targetIssue.number);
+      if (destroyed) return;
+      remoteIssue = refreshed;
+      title = refreshed.title || '';
+      body = refreshed.body || '';
+      labels = (refreshed.labels || []).map((label) => label.name);
+      dirty = false;
+      revision += 1;
+      lastRemoteSignature = noteSignature({ title, body, labels });
+      removeLocalDraft();
+      status = archived ? '읽기 전용 · 새로고침됨' : 'GitHub에서 새로고침됨';
+      onRefreshed(refreshed);
+
+      loadingAttachments = Number(refreshed.comments || 0) > 0;
+      reconciledIssueNumber = null;
+    } catch (reason) {
+      error = reason?.message || '노트를 새로고침하지 못했습니다.';
+      status = hadDirtyChanges ? '새로고침 실패 · 로컬 변경 유지됨' : '새로고침 실패';
+      if (hadDirtyChanges) scheduleRemoteSave();
+    } finally {
+      refreshing = false;
     }
   }
 
@@ -633,21 +673,40 @@
 
 <div class="inline-editor">
   <div class="detail-toolbar">
-    <button class="mobile-back" on:click={onBack} aria-label="목록으로 돌아가기">
-      <i class="bi bi-arrow-left" aria-hidden="true"></i> 목록
-    </button>
-    <span>{issue ? `#${issue.number}` : '새 노트'}</span>
-    <span class="save-status" class:is-saving={saving}>
-      {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
-      {status}
-    </span>
-    <div class="ms-auto d-flex gap-2">
+    <div class="detail-toolbar-start">
+      <button class="mobile-back" on:click={onBack} aria-label="목록으로 돌아가기">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> 목록
+      </button>
+      {#if issue}
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          disabled={saving || refreshing}
+          on:click={refreshIssue}
+          aria-label="현재 노트 새로고침"
+          title="현재 노트 새로고침"
+        >
+          {#if refreshing}
+            <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+          {:else}
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+          {/if}
+        </button>
+      {/if}
+    </div>
+    <div class="detail-toolbar-center">
+      <span>{issue ? `#${issue.number}` : '새 노트'}</span>
+      <span class="save-status" class:is-saving={saving}>
+        {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
+        {status}
+      </span>
+    </div>
+    <div class="detail-toolbar-actions">
       {#if !archived && !labels.length}
         <TagPicker
           toolbar
           {availableLabels}
           selectedLabels={labels}
-          disabled={saving}
+          disabled={saving || refreshing}
           onSelect={addTag}
         />
       {/if}
@@ -658,7 +717,7 @@
           type="file"
           id={`inline-attachment-${editorId}`}
           multiple
-          disabled={saving || uploadBatchActive}
+          disabled={saving || refreshing || uploadBatchActive}
           on:change={(event) => uploadFiles(event.currentTarget.files)}
         />
         <label class="btn btn-sm btn-outline-secondary" for={`inline-attachment-${editorId}`}>
@@ -667,7 +726,11 @@
         </label>
       {/if}
       {#if issue}
-        <button class="btn btn-sm btn-outline-secondary" on:click={() => onMove(issue)}>
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          disabled={saving || refreshing}
+          on:click={() => onMove(issue)}
+        >
           <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
           {archived ? '복원' : '삭제'}
         </button>
@@ -727,12 +790,12 @@
               type="file"
               id={`inline-attachment-${editorId}`}
               multiple
-              disabled={saving || uploadBatchActive}
+              disabled={saving || refreshing || uploadBatchActive}
               on:change={(event) => uploadFiles(event.currentTarget.files)}
             />
             <label
               class="attachment-add-tile"
-              class:disabled={saving || uploadBatchActive}
+              class:disabled={saving || refreshing || uploadBatchActive}
               for={`inline-attachment-${editorId}`}
             >
               <strong><i class="bi bi-plus-lg" aria-hidden="true"></i></strong>
@@ -763,7 +826,7 @@
           <TagPicker
             {availableLabels}
             selectedLabels={labels}
-            disabled={saving}
+            disabled={saving || refreshing}
             onSelect={addTag}
           />
         {/if}
@@ -778,7 +841,7 @@
         placeholder="제목"
         maxlength="256"
         aria-label="노트 제목"
-        readonly={archived || saving}
+        readonly={archived || saving || refreshing}
       />
     {/if}
     <textarea
@@ -794,7 +857,7 @@
       on:drop={handleDrop}
       placeholder={titleMode === 'first-line' ? '첫 줄이 노트 제목이 됩니다…' : '내용을 입력하세요…'}
       aria-label="노트 본문"
-      readonly={archived || saving}
+      readonly={archived || saving || refreshing}
     ></textarea>
   </div>
 

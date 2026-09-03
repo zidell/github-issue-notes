@@ -361,6 +361,13 @@
     }
   }
 
+  function noteRefreshed(refreshedIssue) {
+    issues = issues.map((issue) => issue.id === refreshedIssue.id ? refreshedIssue : issue);
+    const refreshedIssueIsActive = contentRoute?.screen === 'note'
+      && Number(contentRoute.value) === refreshedIssue.number;
+    if (refreshedIssueIsActive) selectedIssue = refreshedIssue;
+  }
+
   function noteCreated(savedIssue) {
     const newNoteIsActive = contentRoute?.screen === 'new';
     error = '';
@@ -1064,6 +1071,7 @@
               availableLabels={repositoryLabels}
               {labelMutation}
               onSaved={noteSaved}
+              onRefreshed={noteRefreshed}
               onCreated={noteCreated}
               onDraftChange={pendingNoteChanged}
               onLabelsAvailable={mergeRepositoryLabels}
