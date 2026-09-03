@@ -96,3 +96,7 @@ npm run build
 ```
 
 `dist/` 폴더를 GitHub Pages나 다른 정적 호스팅에 배포할 수 있습니다.
+
+## 라이선스
+
+[MIT License](LICENSE)
