@@ -3,6 +3,7 @@
   import { createStackRouter } from 'spa-stack-router';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
+  import { markdownToPlainText } from './lib/notes.js';
   import {
     createIssue,
     createLabel,
@@ -732,7 +733,7 @@
   }
 
   function excerpt(body) {
-    const text = String(body || '').replace(/\s+/g, ' ').trim();
+    const text = markdownToPlainText(body);
     return text || '내용이 없습니다.';
   }
 
@@ -1141,7 +1142,7 @@
                 ></button>
                 <div class="note-row-content">
                   {#if titleMode === 'separate'}
-                    <span class="note-row-title">{issue.title}</span>
+                    <span class="note-row-title">{markdownToPlainText(issue.title)}</span>
                   {/if}
                   <span
                     class="note-row-preview"
