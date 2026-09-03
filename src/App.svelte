@@ -6,11 +6,11 @@
   import {
     createIssue,
     createLabel,
-    listIssues,
+    listIssuesPage,
     listLabels,
     removeLabel,
     renameLabel,
-    searchIssues,
+    searchIssuesPage,
     setIssueState,
     verifyConnection
   } from './lib/github.js';
@@ -34,6 +34,9 @@
   let query = '';
   let activeLabel = '';
   let loading = false;
+  let loadingMore = false;
+  let issuePage = 1;
+  let hasMoreIssues = false;
   let error = '';
   let notice = '';
   let routeStack = [];
@@ -57,7 +60,7 @@
     ? '검색 결과가 없습니다.'
     : state === 'open'
       ? '아직 작성한 노트가 없습니다.'
-      : '휴지통이 비어 있습니다.';
+      : '최근 30일 이내 삭제한 노트가 없습니다.';
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = repositoryName(repo);
   $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
@@ -254,20 +257,56 @@
       loading = true;
     }
     try {
-      const nextIssues = requestedQuery.trim()
-        ? await searchIssues(token, repo, requestedState, requestedQuery, requestedLabel)
-        : await listIssues(token, repo, requestedState, requestedLabel);
+      const result = requestedQuery.trim()
+        ? await searchIssuesPage(token, repo, requestedState, requestedQuery, requestedLabel)
+        : await listIssuesPage(token, repo, requestedState, requestedLabel);
       if (
         requestedQuery !== query
         || requestedState !== state
         || requestedLabel !== activeLabel
       ) return;
-      issues = nextIssues;
+      if (background && issuePage > 1) {
+        const refreshedIds = new Set(result.items.map((issue) => issue.id));
+        issues = [...result.items, ...issues.filter((issue) => !refreshedIds.has(issue.id))];
+      } else {
+        issues = result.items;
+        issuePage = 1;
+        hasMoreIssues = result.hasMore;
+      }
       applyRoute();
     } catch (reason) {
       if (!background) error = friendlyError(reason);
     } finally {
       if (!background) loading = false;
+    }
+  }
+
+  async function loadMoreIssues() {
+    if (loading || loadingMore || !hasMoreIssues) return;
+    const requestedQuery = query;
+    const requestedState = state;
+    const requestedLabel = activeLabel;
+    const nextPage = issuePage + 1;
+    loadingMore = true;
+    error = '';
+    try {
+      const result = requestedQuery.trim()
+        ? await searchIssuesPage(token, repo, requestedState, requestedQuery, requestedLabel, nextPage)
+        : await listIssuesPage(token, repo, requestedState, requestedLabel, nextPage);
+      if (
+        requestedQuery !== query
+        || requestedState !== state
+        || requestedLabel !== activeLabel
+      ) return;
+      const knownIds = new Set(issues.map((issue) => issue.id));
+      issues = [...issues, ...result.items.filter((issue) => !knownIds.has(issue.id))];
+      issuePage = nextPage;
+      hasMoreIssues = result.hasMore;
+      applyRoute();
+    } catch (reason) {
+      error = friendlyError(reason);
+    } finally {
+      loadingMore = false;
     }
   }
 
@@ -1125,6 +1164,18 @@
                 {/if}
               </article>
               {/each}
+              {#if hasMoreIssues}
+                <div class="list-load-more">
+                  <button class="btn btn-outline-secondary" disabled={loadingMore} on:click={loadMoreIssues}>
+                    {#if loadingMore}
+                      <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+                    {:else}
+                      <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                    {/if}
+                    더 보기
+                  </button>
+                </div>
+              {/if}
             {/if}
           </div>
           {#if loading}

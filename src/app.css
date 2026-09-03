@@ -98,6 +98,8 @@ button, input, textarea { font: inherit; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
 .note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; opacity: .6; pointer-events: auto; }
 .note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 35%, white); background: color-mix(in srgb, var(--tag-color) 32%, #242424); }
+.list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
+.list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
 .region-spinner { --bs-spinner-width: 1rem; --bs-spinner-height: 1rem; --bs-spinner-border-width: .14em; }
 .list-api-overlay, .attachment-api-overlay { display: grid; place-items: center; background: rgba(10, 10, 10, .42); }

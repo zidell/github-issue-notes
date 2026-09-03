@@ -1,7 +1,8 @@
 import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
 
 const API_ROOT = 'https://api.github.com';
-const ISSUE_PAGE_SIZE = 30;
+export const ISSUE_PAGE_SIZE = 30;
+export const CLOSED_ISSUE_RETENTION_DAYS = 30;
 
 function headers(token) {
   return {
@@ -81,30 +82,61 @@ export async function verifyConnection(token, repoInput) {
 }
 
 export async function listIssues(token, repoInput, state = 'open', label = '') {
+  const result = await listIssuesPage(token, repoInput, state, label);
+  return result.items;
+}
+
+export async function listIssuesPage(token, repoInput, state = 'open', label = '', page = 1, now = Date.now()) {
   const repo = normalizeRepo(repoInput);
+  if (state === 'closed') {
+    return searchIssuesPage(token, repo, state, '', label, page, now);
+  }
   const params = new URLSearchParams({
     state,
     sort: 'updated',
     direction: 'desc',
-    per_page: String(ISSUE_PAGE_SIZE)
+    per_page: String(ISSUE_PAGE_SIZE),
+    page: String(page)
   });
   if (label) params.set('labels', label);
-  const data = await request(
+  const { data, response } = await request(
     `/repos/${repo}/issues?${params}`,
-    token
+    token,
+    { withResponse: true }
   );
-  return issueOnly(data);
+  return {
+    items: issueOnly(data),
+    hasMore: Boolean(nextPagePath(response.headers.get('link')))
+  };
 }
 
 export async function searchIssues(token, repoInput, state, term, label = '') {
+  const result = await searchIssuesPage(token, repoInput, state, term, label);
+  return result.items;
+}
+
+export async function searchIssuesPage(token, repoInput, state, term, label = '', page = 1, now = Date.now()) {
   const repo = normalizeRepo(repoInput);
   const labelQuery = label ? ` label:${JSON.stringify(label)}` : '';
-  const query = `${term.trim()} repo:${repo} is:issue is:${state} in:title,body${labelQuery}`;
+  const termQuery = term.trim();
+  const cutoffQuery = state === 'closed'
+    ? ` closed:>=${closedIssueCutoff(now)}`
+    : '';
+  const query = `${termQuery ? `${termQuery} ` : ''}repo:${repo} is:issue is:${state}${termQuery ? ' in:title,body' : ''}${cutoffQuery}${labelQuery}`;
   const data = await request(
-    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${ISSUE_PAGE_SIZE}`,
+    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${ISSUE_PAGE_SIZE}&page=${page}`,
     token
   );
-  return issueOnly(data.items);
+  return {
+    items: issueOnly(data.items),
+    hasMore: page * ISSUE_PAGE_SIZE < Math.min(Number(data.total_count) || 0, 1000)
+  };
+}
+
+function closedIssueCutoff(now) {
+  const cutoff = new Date(now);
+  cutoff.setUTCDate(cutoff.getUTCDate() - CLOSED_ISSUE_RETENTION_DAYS);
+  return cutoff.toISOString().slice(0, 10);
 }
 
 export function getIssue(token, repoInput, issueNumber) {

@@ -8,7 +8,9 @@ import {
   listIssueAttachmentComments,
   listIssueAttachmentFiles,
   listIssues,
+  listIssuesPage,
   searchIssues,
+  searchIssuesPage,
   updateIssue,
   uploadAttachment,
   verifyConnection
@@ -65,24 +67,65 @@ describe('GitHub API client', () => {
     expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer secret-token');
   });
 
-  it('이슈를 최근 순 30개로 요청하고 pull request를 제외한다', async () => {
+  it('열린 이슈를 최근 순 30개로 요청하고 pull request를 제외한다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse([
       { id: 1, number: 10, title: '노트' },
       { id: 2, number: 11, title: 'PR', pull_request: {} }
     ]));
 
-    const result = await listIssues('token', 'owner/repo', 'closed', '여행 계획');
+    const result = await listIssues('token', 'owner/repo', 'open', '여행 계획');
     const url = new URL(fetch.mock.calls[0][0]);
 
     expect(result).toEqual([{ id: 1, number: 10, title: '노트' }]);
     expect(url.pathname).toBe('/repos/owner/repo/issues');
     expect(Object.fromEntries(url.searchParams)).toEqual({
-      state: 'closed',
+      state: 'open',
       sort: 'updated',
       direction: 'desc',
       per_page: '30',
+      page: '1',
       labels: '여행 계획'
     });
+  });
+
+  it('닫힌 이슈는 최근 30일 이내만 검색한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({
+      total_count: 1,
+      items: [{ id: 1, number: 10, title: '삭제한 노트' }]
+    }));
+
+    const result = await listIssuesPage(
+      'token',
+      'owner/repo',
+      'closed',
+      '여행 계획',
+      1,
+      new Date('2026-09-04T12:00:00Z')
+    );
+    const url = new URL(fetch.mock.calls[0][0]);
+
+    expect(result).toEqual({
+      items: [{ id: 1, number: 10, title: '삭제한 노트' }],
+      hasMore: false
+    });
+    expect(url.pathname).toBe('/search/issues');
+    expect(url.searchParams.get('q')).toBe(
+      'repo:owner/repo is:issue is:closed closed:>=2026-08-05 label:"여행 계획"'
+    );
+  });
+
+  it('이슈 목록의 다음 페이지 링크와 페이지 번호를 처리한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse(
+      [{ id: 31, number: 31, title: '다음 노트' }],
+      { headers: { Link: '<https://api.github.com/repositories/1/issues?page=3>; rel="next"' } }
+    ));
+
+    const result = await listIssuesPage('token', 'owner/repo', 'open', '', 2);
+    const url = new URL(fetch.mock.calls[0][0]);
+
+    expect(url.searchParams.get('page')).toBe('2');
+    expect(result.hasMore).toBe(true);
+    expect(result.items).toHaveLength(1);
   });
 
   it('제목과 본문을 대상으로 저장소와 태그를 포함해 검색한다', async () => {
@@ -100,6 +143,19 @@ describe('GitHub API client', () => {
     );
     expect(url.searchParams.get('sort')).toBe('updated');
     expect(url.searchParams.get('per_page')).toBe('30');
+    expect(url.searchParams.get('page')).toBe('1');
+  });
+
+  it('검색 결과의 전체 개수로 다음 페이지 여부를 계산한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({
+      total_count: 61,
+      items: Array.from({ length: 30 }, (_, index) => ({ id: index + 31 }))
+    }));
+
+    const result = await searchIssuesPage('token', 'owner/repo', 'open', '검색어', '', 2);
+
+    expect(result.items).toHaveLength(30);
+    expect(result.hasMore).toBe(true);
   });
 
   it('이슈 생성과 수정에 제목·본문·라벨만 전송한다', async () => {
