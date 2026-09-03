@@ -99,14 +99,18 @@ export async function listIssuesPage(token, repoInput, state = 'open', label = '
     page: String(page)
   });
   if (label) params.set('labels', label);
-  const { data, response } = await request(
-    `/repos/${repo}/issues?${params}`,
-    token,
-    { withResponse: true }
-  );
+  const countQuery = `repo:${repo} is:issue is:${state}${label ? ` label:${JSON.stringify(label)}` : ''}`;
+  const [pageResult, countResult] = await Promise.all([
+    request(`/repos/${repo}/issues?${params}`, token, { withResponse: true }),
+    page === 1
+      ? request(`/search/issues?q=${encodeURIComponent(countQuery)}&per_page=1`, token)
+      : null
+  ]);
+  const { data, response } = pageResult;
   return {
     items: issueOnly(data),
-    hasMore: Boolean(nextPagePath(response.headers.get('link')))
+    hasMore: Boolean(nextPagePath(response.headers.get('link'))),
+    totalCount: countResult ? Number(countResult.total_count) || 0 : null
   };
 }
 
@@ -129,7 +133,8 @@ export async function searchIssuesPage(token, repoInput, state, term, label = ''
   );
   return {
     items: issueOnly(data.items),
-    hasMore: page * ISSUE_PAGE_SIZE < Math.min(Number(data.total_count) || 0, 1000)
+    hasMore: page * ISSUE_PAGE_SIZE < Math.min(Number(data.total_count) || 0, 1000),
+    totalCount: Number(data.total_count) || 0
   };
 }
 

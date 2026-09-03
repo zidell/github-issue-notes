@@ -66,6 +66,7 @@
     labels: (issue.labels || []).map((label) => label.name)
   }) : '';
   let forceSaveQueued = false;
+  let saveFailed = false;
   let draggingFiles = false;
   let reconciledIssueNumber = null;
   let destroyed = false;
@@ -90,6 +91,15 @@
     mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
   }[font] || 'sans-serif';
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
+  $: compactStatus = archived
+    ? '읽기 전용'
+    : saveFailed
+      ? '저장 실패'
+      : saving || dirty
+        ? '저장 중'
+        : issue
+          ? '저장됨'
+          : '새 노트';
   $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
     remoteIssue = allocatedIssue;
   }
@@ -212,6 +222,7 @@
     if (archived) return;
     if (titleMode === 'first-line') title = automaticTitle(body);
     dirty = true;
+    saveFailed = false;
     revision += 1;
     error = '';
     status = '입력 중…';
@@ -295,6 +306,7 @@
     const savingRevision = revision;
     title = note.title;
     saving = true;
+    saveFailed = false;
     status = 'GitHub에 저장 중…';
     error = '';
 
@@ -325,9 +337,11 @@
         status = '변경사항 저장 대기 중…';
         scheduleRemoteSave();
       }
+      saveFailed = false;
 
       if (!issue) onCreated(saved);
     } catch (reason) {
+      saveFailed = true;
       error = reason?.status === 401
         ? 'PAT가 올바르지 않거나 폐기되었습니다.'
         : reason?.status === 403
@@ -811,7 +825,7 @@
       <span>{issue ? `#${issue.number}` : '새 노트'}</span>
       <span class="save-status" class:is-saving={saving}>
         {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
-        {status}
+        {compactStatus}
       </span>
     </div>
     {#if !archived && !attachments.length}

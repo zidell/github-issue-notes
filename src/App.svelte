@@ -38,6 +38,7 @@
   let loadingMore = false;
   let issuePage = 1;
   let hasMoreIssues = false;
+  let totalIssues = 0;
   let error = '';
   let notice = '';
   let routeStack = [];
@@ -76,6 +77,9 @@
   $: visibleIssues = pendingNote && state === 'open' && !query && pendingMatchesLabel
     ? [pendingNote, ...issues]
     : issues;
+  $: displayedIssueCount = totalIssues + (
+    pendingNote && state === 'open' && !query && pendingMatchesLabel ? 1 : 0
+  );
 
   onMount(() => {
     router.init();
@@ -276,6 +280,7 @@
         issuePage = 1;
         hasMoreIssues = result.hasMore;
       }
+      if (result.totalCount !== null) totalIssues = result.totalCount;
       applyRoute();
     } catch (reason) {
       if (!background) error = friendlyError(reason);
@@ -305,6 +310,7 @@
       issues = [...issues, ...result.items.filter((issue) => !knownIds.has(issue.id))];
       issuePage = nextPage;
       hasMoreIssues = result.hasMore;
+      if (result.totalCount !== null) totalIssues = result.totalCount;
       applyRoute();
     } catch (reason) {
       error = friendlyError(reason);
@@ -445,6 +451,7 @@
     query = '';
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
+    totalIssues += 1;
     pendingNote = null;
     pendingAllocation = null;
     if (newNoteIsActive) selectedIssue = savedIssue;
@@ -675,6 +682,7 @@
     try {
       await setIssueState(token, repo, issue.number, nextState);
       issues = issues.filter((item) => item.id !== issue.id);
+      totalIssues = Math.max(0, totalIssues - 1);
       if (selectedIssue?.id === issue.id) {
         selectedIssue = null;
         if (router.getDepth()) router.popTo(0);
@@ -730,6 +738,7 @@
     user = null;
     repository = null;
     issues = [];
+    totalIssues = 0;
     repositoryLabels = [];
     pendingNote = null;
     selectedIssue = null;
@@ -1069,7 +1078,7 @@
             {/if}
             <div class="sidebar-heading-title">
               <h1>{activeLabel ? `#${activeLabel}` : state === 'open' ? '노트' : '휴지통'}</h1>
-              <span>{visibleIssues.length}개</span>
+              <span>{displayedIssueCount}개</span>
             </div>
           </div>
           {#if state === 'open'}
@@ -1175,7 +1184,7 @@
               {/each}
               {#if hasMoreIssues}
                 <div class="list-load-more">
-                  <button class="btn btn-outline-secondary" disabled={loadingMore} on:click={loadMoreIssues}>
+                  <button class="btn btn-sm btn-link text-secondary" disabled={loadingMore} on:click={loadMoreIssues}>
                     {#if loadingMore}
                       <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
                     {:else}

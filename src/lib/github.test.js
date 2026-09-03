@@ -68,16 +68,21 @@ describe('GitHub API client', () => {
   });
 
   it('열린 이슈를 최근 순 30개로 요청하고 pull request를 제외한다', async () => {
-    fetch.mockResolvedValueOnce(jsonResponse([
-      { id: 1, number: 10, title: '노트' },
-      { id: 2, number: 11, title: 'PR', pull_request: {} }
-    ]));
+    fetch
+      .mockResolvedValueOnce(jsonResponse([
+        { id: 1, number: 10, title: '노트' },
+        { id: 2, number: 11, title: 'PR', pull_request: {} }
+      ]))
+      .mockResolvedValueOnce(jsonResponse({ total_count: 42, items: [] }));
 
     const result = await listIssues('token', 'owner/repo', 'open', '여행 계획');
     const url = new URL(fetch.mock.calls[0][0]);
 
     expect(result).toEqual([{ id: 1, number: 10, title: '노트' }]);
     expect(url.pathname).toBe('/repos/owner/repo/issues');
+    expect(new URL(fetch.mock.calls[1][0]).searchParams.get('q')).toBe(
+      'repo:owner/repo is:issue is:open label:"여행 계획"'
+    );
     expect(Object.fromEntries(url.searchParams)).toEqual({
       state: 'open',
       sort: 'updated',
@@ -106,7 +111,8 @@ describe('GitHub API client', () => {
 
     expect(result).toEqual({
       items: [{ id: 1, number: 10, title: '삭제한 노트' }],
-      hasMore: false
+      hasMore: false,
+      totalCount: 1
     });
     expect(url.pathname).toBe('/search/issues');
     expect(url.searchParams.get('q')).toBe(
@@ -125,6 +131,7 @@ describe('GitHub API client', () => {
 
     expect(url.searchParams.get('page')).toBe('2');
     expect(result.hasMore).toBe(true);
+    expect(result.totalCount).toBeNull();
     expect(result.items).toHaveLength(1);
   });
 
@@ -156,6 +163,7 @@ describe('GitHub API client', () => {
 
     expect(result.items).toHaveLength(30);
     expect(result.hasMore).toBe(true);
+    expect(result.totalCount).toBe(61);
   });
 
   it('이슈 생성과 수정에 제목·본문·라벨만 전송한다', async () => {
