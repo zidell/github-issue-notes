@@ -499,6 +499,25 @@
     return true;
   }
 
+  function connectionSettingsChanged() {
+    if (!settingsSnapshot) return true;
+    const requestedRepo = repositoryName(repo)?.fullName || repo.trim();
+    const savedRepo = repositoryName(settingsSnapshot.repo)?.fullName || settingsSnapshot.repo.trim();
+    return token.trim() !== settingsSnapshot.token.trim()
+      || requestedRepo.toLocaleLowerCase() !== savedRepo.toLocaleLowerCase();
+  }
+
+  function finishLocalSettingsSave() {
+    token = token.trim();
+    repo = repository?.full_name || repositoryName(repo)?.fullName || repo.trim();
+    persistSettings(repo);
+    settingsSnapshot = null;
+    labelRenameDrafts = [];
+    appState = 'ready';
+    notice = '';
+    router.pop();
+  }
+
   async function saveConfiguration() {
     if (topRoute?.screen !== 'settings') {
       await connect(true);
@@ -507,12 +526,19 @@
 
     error = '';
     notice = '';
+    const needsConnectionCheck = connectionSettingsChanged();
+    if (!needsConnectionCheck && labelRenameDrafts.length === 0) {
+      finishLocalSettingsSave();
+      return;
+    }
+
     appState = 'connecting';
     if (!await applyLabelRenameDrafts()) {
       appState = 'ready';
       return;
     }
-    await connect(false);
+    if (needsConnectionCheck) await connect(false);
+    else finishLocalSettingsSave();
   }
 
   async function createRepositoryLabel(name) {

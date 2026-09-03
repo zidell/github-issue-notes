@@ -21,6 +21,8 @@ button, input, textarea { font: inherit; }
 .form-control:focus { color: #fff; background: #222; }
 .form-control::placeholder { color: #777; }
 .form-select { color: #eee; border-color: #444; background-color: #222; }
+.form-control:disabled, .form-select:disabled { color: #888; border-color: #383838; background-color: #1d1d1d; opacity: 1; }
+.form-control:disabled::placeholder { color: #666; }
 .bg-white { background-color: #1d1d1d !important; }
 .btn-light { --bs-btn-color: #ddd; --bs-btn-bg: #292929; --bs-btn-border-color: #3d3d3d; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #333; --bs-btn-hover-border-color: #4a4a4a; }
 .btn-outline-secondary { --bs-btn-color: #bbb; --bs-btn-border-color: #555; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #3a3a3a; --bs-btn-hover-border-color: #666; }
