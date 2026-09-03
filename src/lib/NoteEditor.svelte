@@ -1,7 +1,7 @@
 <script>
   import { afterUpdate, onDestroy, onMount } from 'svelte';
   import TagPicker from './TagPicker.svelte';
-  import { automaticTitle } from './notes.js';
+  import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
     createAttachmentComment,
     createIssue,
@@ -76,6 +76,10 @@
   let localTimer;
   let remoteTimer;
   let fileInput;
+  let bodyInput;
+  let linkTooltip;
+  let activeLink = null;
+  let linkTooltipStyle = '';
   let mounted = false;
   let handledRefreshRequest = 0;
 
@@ -522,6 +526,79 @@
     saveRemote(true);
   }
 
+  function handleBodyInput(event) {
+    changed();
+    updateLinkTooltip(event);
+  }
+
+  function updateLinkTooltip(event) {
+    const textarea = event?.currentTarget || bodyInput;
+    if (!textarea || textarea.selectionStart !== textarea.selectionEnd) {
+      hideLinkTooltip();
+      return;
+    }
+    const nextLink = linkAtCursor(textarea.value, textarea.selectionStart);
+    if (!nextLink) {
+      hideLinkTooltip();
+      return;
+    }
+    activeLink = nextLink;
+    positionLinkTooltip(textarea);
+  }
+
+  function positionLinkTooltip(textarea) {
+    requestAnimationFrame(() => {
+      if (!activeLink || !textarea?.isConnected) return;
+      const style = getComputedStyle(textarea);
+      const bounds = textarea.getBoundingClientRect();
+      const mirror = document.createElement('div');
+      const marker = document.createElement('span');
+      Object.assign(mirror.style, {
+        position: 'fixed',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        boxSizing: style.boxSizing,
+        left: `${bounds.left}px`,
+        top: `${bounds.top}px`,
+        width: `${bounds.width}px`,
+        height: `${bounds.height}px`,
+        padding: style.padding,
+        border: style.border,
+        font: style.font,
+        letterSpacing: style.letterSpacing,
+        lineHeight: style.lineHeight,
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'break-word'
+      });
+      mirror.textContent = textarea.value.slice(0, textarea.selectionStart);
+      marker.textContent = '\u200b';
+      mirror.append(marker);
+      document.body.append(mirror);
+      mirror.scrollTop = textarea.scrollTop;
+      mirror.scrollLeft = textarea.scrollLeft;
+      const markerBounds = marker.getBoundingClientRect();
+      const tooltipWidth = Math.min(420, Math.max(220, window.innerWidth - 16));
+      const left = Math.min(
+        window.innerWidth - tooltipWidth - 8,
+        Math.max(8, markerBounds.left)
+      );
+      let top = markerBounds.top - 40;
+      if (top < 8) top = markerBounds.bottom + 8;
+      linkTooltipStyle = `left:${left}px;top:${top}px;max-width:${tooltipWidth}px`;
+      mirror.remove();
+    });
+  }
+
+  function hideLinkTooltip() {
+    activeLink = null;
+    linkTooltipStyle = '';
+  }
+
+  function handleBodyBlur(event) {
+    if (event.relatedTarget !== linkTooltip) hideLinkTooltip();
+  }
+
   function isImage(attachment) {
     return attachment?.type?.startsWith('image/')
       || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
@@ -943,11 +1020,17 @@
       />
     {/if}
     <textarea
+      bind:this={bodyInput}
       class="inline-body"
       class:is-dragging-files={draggingFiles}
       bind:value={body}
-      on:input={changed}
+      on:input={handleBodyInput}
       on:keydown={handleEditorKeydown}
+      on:keyup={updateLinkTooltip}
+      on:click={updateLinkTooltip}
+      on:select={updateLinkTooltip}
+      on:scroll={hideLinkTooltip}
+      on:blur={handleBodyBlur}
       on:paste={handlePaste}
       on:dragenter={handleDragEnter}
       on:dragover={handleDragOver}
@@ -957,6 +1040,21 @@
       aria-label="노트 본문"
       readonly={archived || saving || refreshing}
     ></textarea>
+    {#if activeLink}
+      <a
+        bind:this={linkTooltip}
+        class="editor-link-tooltip"
+        style={linkTooltipStyle}
+        href={activeLink.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={activeLink.url}
+        aria-label={`${activeLink.url} 새 탭에서 열기`}
+      >
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+        <span>{shortenMiddle(activeLink.url)}</span>
+      </a>
+    {/if}
   </div>
 
   {#if viewedAttachment}

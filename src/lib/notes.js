@@ -20,3 +20,37 @@ export function markdownToPlainText(value) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+export function linkAtCursor(value, cursor) {
+  const text = String(value || '');
+  const position = Number(cursor);
+  if (!Number.isInteger(position) || position < 0 || position > text.length) return null;
+
+  const markdownLink = /(?<!!)\[[^\]\n]*\]\(\s*(https?:\/\/[^\s)]+)(?:\s+["'][^"']*["'])?\s*\)/gi;
+  for (const match of text.matchAll(markdownLink)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (position >= start && position <= end) {
+      return { url: match[1], start, end };
+    }
+  }
+
+  const plainLink = /https?:\/\/[^\s<>"'`]+/gi;
+  for (const match of text.matchAll(plainLink)) {
+    const url = match[0].replace(/[\].,;:!?)}]+$/, '');
+    const start = match.index;
+    const end = start + url.length;
+    if (position >= start && position <= end) return { url, start, end };
+  }
+
+  return null;
+}
+
+export function shortenMiddle(value, maxLength = 64) {
+  const characters = Array.from(String(value || ''));
+  if (characters.length <= maxLength) return characters.join('');
+  const available = Math.max(2, maxLength - 1);
+  const leading = Math.ceil(available / 2);
+  const trailing = Math.floor(available / 2);
+  return `${characters.slice(0, leading).join('')}…${characters.slice(-trailing).join('')}`;
+}

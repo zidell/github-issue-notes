@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { automaticTitle, markdownToPlainText } from './notes.js';
+import { automaticTitle, linkAtCursor, markdownToPlainText, shortenMiddle } from './notes.js';
 
 describe('automaticTitle', () => {
   it('첫 줄의 앞뒤 공백을 제거해 제목으로 사용한다', () => {
@@ -31,5 +31,40 @@ describe('markdownToPlainText', () => {
   it('이미지는 주소 대신 대체 텍스트만 남긴다', () => {
     expect(markdownToPlainText('![풍경](https://example.com/image.png) 다음 문장'))
       .toBe('풍경 다음 문장');
+  });
+});
+
+describe('linkAtCursor', () => {
+  it('Markdown 링크의 라벨과 주소 위에서 URL을 찾는다', () => {
+    const body = '앞 [GitHub](https://github.com/example/repo) 뒤';
+    expect(linkAtCursor(body, body.indexOf('GitHub') + 2)?.url)
+      .toBe('https://github.com/example/repo');
+    expect(linkAtCursor(body, body.indexOf('github.com') + 3)?.url)
+      .toBe('https://github.com/example/repo');
+  });
+
+  it('일반 URL에서 문장 끝 문장부호를 제외한다', () => {
+    const body = '문서: https://example.com/guide?q=note.';
+    expect(linkAtCursor(body, body.indexOf('example.com'))).toEqual({
+      url: 'https://example.com/guide?q=note',
+      start: 4,
+      end: 36
+    });
+  });
+
+  it('이미지 문법이나 링크 밖의 커서는 무시한다', () => {
+    const body = '![사진](https://example.com/a.png) 일반 텍스트';
+    expect(linkAtCursor(body, 3)).toBeNull();
+    expect(linkAtCursor(body, body.length)).toBeNull();
+  });
+});
+
+describe('shortenMiddle', () => {
+  it('긴 주소의 가운데만 줄인다', () => {
+    expect(shortenMiddle('1234567890', 7)).toBe('123…890');
+  });
+
+  it('짧은 주소는 그대로 둔다', () => {
+    expect(shortenMiddle('https://example.com', 30)).toBe('https://example.com');
   });
 });

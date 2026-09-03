@@ -120,6 +120,9 @@ button, input, textarea { font: inherit; }
 .save-status.is-saving { color: #60a5fa; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid #363636; background: #201b1b; font-size: .8rem; }
 .inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
+.editor-link-tooltip { position: fixed; z-index: 1070; display: flex; align-items: center; gap: .45rem; overflow: hidden; padding: .45rem .65rem; border: 1px solid #4b5568; border-radius: 5px; color: #dbe7ff; background: #202b40; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .78rem; line-height: 1.25; text-decoration: none; }
+.editor-link-tooltip:hover, .editor-link-tooltip:focus-visible { color: #fff; border-color: #6684bd; background: #283854; }
+.editor-link-tooltip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-section { position: relative; flex: none; min-height: 96px; margin: 0 var(--editor-gutter) .75rem; padding-bottom: .75rem; border-bottom: 1px solid #303030; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .attachment-section.is-loading > .attachment-list { opacity: .48; }
 .attachment-api-overlay { position: absolute; z-index: 3; inset: 0 0 .75rem; pointer-events: none; }
