@@ -47,6 +47,8 @@ button, input, textarea { font: inherit; }
 .tag-settings-list { max-height: 300px; overflow-y: auto; }
 .tag-settings-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; margin-bottom: .65rem; padding-bottom: .65rem; border-bottom: 1px solid #353535; }
 .tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; padding: .35rem 0; }
+.tag-settings-row .form-control { min-width: 0; }
+.tag-settings-row .btn { white-space: nowrap; }
 .mcp-guide code, .mcp-guide .font-monospace { color: #d8d8d8; }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
 
@@ -89,8 +91,8 @@ button, input, textarea { font: inherit; }
 .note-row-preview { overflow: hidden; margin-bottom: .25rem; color: #aaa; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
 .note-row-meta, .reader-meta { color: #777; font-size: .72rem; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; }
-.note-row-labels button { padding: .08rem .3rem; border: 0; border-radius: 3px; color: #9fb9ee; background: #263149; font-size: .68rem; }
-.note-row-labels button:hover { color: #c8d8ff; background: #324163; }
+.note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; }
+.note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 35%, white); background: color-mix(in srgb, var(--tag-color) 32%, #242424); }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
 
 .note-detail { position: relative; min-width: 0; height: 100%; overflow: hidden; background: #171717; }
@@ -126,8 +128,9 @@ button, input, textarea { font: inherit; }
 .viewer-prev { left: .75rem; }
 .viewer-next { right: .75rem; }
 .editor-tags { flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin-bottom: .8rem; }
-.editor-tag { display: inline-flex; align-items: center; gap: .2rem; padding: .18rem .4rem; border-radius: 4px; color: #b7c9f3; background: #263149; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .75rem; }
-.editor-tag button { padding: 0; border: 0; color: #91a5d2; background: transparent; line-height: 1; }
+.editor-tag { display: inline-flex; align-items: center; gap: .2rem; padding: .18rem .4rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 4px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .75rem; }
+.editor-tag button { padding: 0; border: 0; color: inherit; background: transparent; line-height: 1; opacity: .72; }
+.editor-tag button:hover { opacity: 1; }
 .tag-picker { position: relative; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .tag-picker.toolbar .tag-dropdown { right: 0; left: auto; }
 .tag-picker-toggle { padding: .18rem .4rem; border: 1px dashed #4a4a4a; border-radius: 4px; color: #929292; background: transparent; font-size: .75rem; }
@@ -158,8 +161,6 @@ button, input, textarea { font: inherit; }
   .mobile-detail-active .note-detail { transform: translateX(0); }
   .mobile-back { display: inline-block; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
-  .tag-settings-row { grid-template-columns: auto minmax(0, 1fr); }
-  .tag-settings-row .btn { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -518,6 +518,12 @@
     return labels.some((label) => label.toLocaleLowerCase() === name.toLocaleLowerCase());
   }
 
+  function tagColor(name) {
+    return `#${availableLabels.find(
+      (label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()
+    )?.color || '4f46e5'}`;
+  }
+
   function applyLabelMutation(mutation) {
     appliedLabelMutation = mutation.id;
     labels = labels
@@ -649,7 +655,7 @@
     {#if labels.length}
       <div class="editor-tags">
         {#each labels as label (label)}
-          <span class="editor-tag">
+          <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
             #{label}
             {#if !archived}
               <button type="button" on:click={() => removeTag(label)} aria-label={`${label} 태그 제거`}>

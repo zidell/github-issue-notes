@@ -381,6 +381,14 @@
     );
   }
 
+  function labelColor(label) {
+    return label?.color
+      || repositoryLabels.find(
+        (item) => item.name.toLocaleLowerCase() === label?.name?.toLocaleLowerCase()
+      )?.color
+      || '4f46e5';
+  }
+
   function pendingNoteChanged(draft) {
     if (!pendingNote) return;
     pendingNote = { ...pendingNote, ...draft };
@@ -658,6 +666,10 @@
                 autocomplete="off"
                 required
               />
+              <div class="form-text text-warning">
+                <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                개인 노트가 공개되지 않도록 저장소는 반드시 Private으로 설정하세요.
+              </div>
             </div>
 
             {#if topRoute?.screen !== 'settings'}
@@ -680,8 +692,8 @@
                       <span>예: 저장소 이름을 issue-notes로 지정합니다.</span>
                     </li>
                     <li>
-                      <strong>Visibility에서 Private을 선택하고 생성합니다.</strong>
-                      <span>생성 후 위 입력칸에 owner/issue-notes 형식으로 입력하세요.</span>
+                      <strong>Visibility에서 반드시 Private을 선택하고 생성합니다.</strong>
+                      <span>Public 저장소에는 노트와 첨부파일이 모두 공개됩니다. 생성 후 위 입력칸에 owner/issue-notes 형식으로 입력하세요.</span>
                     </li>
                   </ol>
                   <a class="btn btn-outline-primary w-100" href="https://github.com/new" target="_blank" rel="noreferrer">
@@ -690,6 +702,24 @@
                 </div>
               </details>
             {/if}
+
+            <div class="mb-3">
+              <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
+              <input
+                id="token"
+                type="password"
+                class="form-control form-control-lg font-monospace"
+                bind:value={token}
+                placeholder="github_pat_..."
+                autocomplete="off"
+                spellcheck="false"
+                required
+              />
+              <div class="form-text">
+                Issues 읽기·쓰기가 필요합니다. 파일 첨부를 사용하려면 Contents 읽기·쓰기도
+                선택하세요.
+              </div>
+            </div>
 
             <details class="pat-guide mb-4">
               <summary class="d-flex align-items-center justify-content-between gap-3">
@@ -744,24 +774,6 @@
                 </p>
               </div>
             </details>
-
-            <div class="mb-3">
-              <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
-              <input
-                id="token"
-                type="password"
-                class="form-control form-control-lg font-monospace"
-                bind:value={token}
-                placeholder="github_pat_..."
-                autocomplete="off"
-                spellcheck="false"
-                required
-              />
-              <div class="form-text">
-                Issues 읽기·쓰기가 필요합니다. 파일 첨부를 사용하려면 Contents 읽기·쓰기도
-                선택하세요.
-              </div>
-            </div>
 
             <div class="form-check mb-4">
               <input
@@ -996,7 +1008,11 @@
                 {#if issue.labels?.length}
                   <div class="note-row-labels">
                     {#each issue.labels as label (label.id || label.name)}
-                      <button type="button" on:click={() => openLabel(label.name)}>#{label.name}</button>
+                      <button
+                        type="button"
+                        style={`--tag-color:#${labelColor(label)}`}
+                        on:click={() => openLabel(label.name)}
+                      >#{label.name}</button>
                     {/each}
                   </div>
                 {/if}
