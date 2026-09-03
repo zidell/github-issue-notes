@@ -47,7 +47,6 @@
   let labelMutation = null;
   let labelMutationSequence = 0;
   let settingsRouteOverride = '';
-  let openingIssueId = '';
 
   $: emptyMessage = query
     ? '검색 결과가 없습니다.'
@@ -316,7 +315,6 @@
       };
       pendingAllocation = allocatePendingIssue(pendingNote);
     }
-    if (!contentRoutes.some((route) => route.screen === 'new')) openingIssueId = pendingNote.id;
     selectedIssue = pendingNote;
     router.navigate('new');
     if (hadQuery) loadIssues();
@@ -350,13 +348,7 @@
   }
 
   function selectNote(issue) {
-    const segment = issue.local ? 'new' : `note.${issue.number}`;
-    if (!contentRoutes.some((route) => route.segment === segment)) openingIssueId = issue.id;
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
-  }
-
-  function noteReady(issueId) {
-    if (openingIssueId === issueId) openingIssueId = '';
   }
 
   function noteSaved(savedIssue) {
@@ -1008,7 +1000,6 @@
               <article
                 class="note-list-row"
                 class:active={selectedIssue?.id === issue.id}
-                class:is-loading={openingIssueId === issue.id}
               >
                 <button
                   class="note-row-hit-area"
@@ -1034,11 +1025,6 @@
                       >#{label.name}</button>
                     {/each}
                   </div>
-                {/if}
-                {#if openingIssueId === issue.id}
-                  <span class="row-api-overlay" aria-label="노트 불러오는 중">
-                    <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-                  </span>
                 {/if}
               </article>
               {/each}
@@ -1080,7 +1066,6 @@
               onSaved={noteSaved}
               onCreated={noteCreated}
               onDraftChange={pendingNoteChanged}
-              onReady={() => noteReady(route.screen === 'new' ? 'local-new-note' : routeIssue.id)}
               onLabelsAvailable={mergeRepositoryLabels}
               onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
               onBack={() => router.pop()}

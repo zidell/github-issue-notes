@@ -31,7 +31,6 @@
   export let onSaved = () => {};
   export let onCreated = () => {};
   export let onDraftChange = () => {};
-  export let onReady = () => {};
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
@@ -65,8 +64,7 @@
   let reconciledIssueNumber = null;
   let destroyed = false;
   let wasPaused = paused;
-  let loadingAttachments = Boolean(remoteIssue?.number || allocationPromise);
-  let readyNotified = false;
+  let loadingAttachments = Number(remoteIssue?.comments || 0) > 0;
   let status = archived ? '읽기 전용' : issue ? '저장됨' : '새 노트';
   let error = '';
   let localTimer;
@@ -110,13 +108,6 @@
     window.addEventListener('pagehide', handlePageExit);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if (!remoteIssue?.number && allocationPromise) {
-      allocationPromise.then((allocated) => {
-        if (!allocated?.number) finishInitialLoad();
-      });
-    } else if (!remoteIssue?.number) {
-      finishInitialLoad();
-    }
   });
 
   afterUpdate(() => {
@@ -194,11 +185,8 @@
     flushRemoteSave({ keepalive: true });
   }
 
-  function finishInitialLoad() {
+  function finishAttachmentLoad() {
     loadingAttachments = false;
-    if (readyNotified || destroyed) return;
-    readyNotified = true;
-    onReady();
   }
 
   function changed() {
@@ -527,7 +515,7 @@
   }
 
   async function reconcileIssueAttachments(issueNumber) {
-    loadingAttachments = true;
+    loadingAttachments = Number(remoteIssue?.comments || 0) > 0;
     try {
       const [files, comments] = await Promise.all([
         listIssueAttachmentFiles(token, repo, issueNumber),
@@ -570,7 +558,7 @@
     } catch (reason) {
       if (!destroyed) error = reason?.message || '첨부 파일 상태를 확인하지 못했습니다.';
     } finally {
-      if (!destroyed && remoteIssue?.number === issueNumber) finishInitialLoad();
+      if (!destroyed && remoteIssue?.number === issueNumber) finishAttachmentLoad();
     }
   }
 
@@ -696,8 +684,11 @@
     class="inline-editor-fields"
     style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight}`}
   >
-    {#if attachments.length || uploading || deletingPath}
-      <section class="attachment-section" class:is-loading={Boolean(uploading || deletingPath)}>
+    {#if loadingAttachments || attachments.length || uploading || deletingPath}
+      <section
+        class="attachment-section"
+        class:is-loading={Boolean(loadingAttachments || uploading || deletingPath)}
+      >
         <div class="attachment-list">
           {#each attachments as attachment, index (attachment.path)}
             <div class="attachment-item">
@@ -749,7 +740,7 @@
             </label>
           {/if}
         </div>
-        {#if uploading || deletingPath}
+        {#if loadingAttachments || uploading || deletingPath}
           <div class="attachment-api-overlay" aria-label="첨부파일 처리 중">
             <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
           </div>
@@ -806,12 +797,6 @@
       readonly={archived || saving}
     ></textarea>
   </div>
-
-  {#if loadingAttachments}
-    <div class="editor-api-overlay" aria-label="노트 데이터 불러오는 중">
-      <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-    </div>
-  {/if}
 
   {#if viewedAttachment}
     <div
