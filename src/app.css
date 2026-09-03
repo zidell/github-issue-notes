@@ -47,6 +47,8 @@ button, input, textarea { font: inherit; }
 .tag-settings-list { max-height: 300px; overflow-y: auto; }
 .tag-settings-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; margin-bottom: .65rem; padding-bottom: .65rem; border-bottom: 1px solid #353535; }
 .tag-settings-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; padding: .35rem 0; }
+.mcp-guide code, .mcp-guide .font-monospace { color: #d8d8d8; }
+.mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
 
 .app-shell { height: 100%; overflow: hidden; background: #171717; }
 .avatar { width: 1.75rem; height: 1.75rem; border-radius: 50%; }

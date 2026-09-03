@@ -56,6 +56,8 @@
       : '휴지통이 비어 있습니다.';
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = repositoryName(repo);
+  $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
+  $: mcpUsagePrompt = `${mcpRepository || 'owner/repository'} 저장소의 GitHub Issues를 노트로 사용해줘. 열린 이슈는 일반 노트, 닫힌 이슈는 휴지통이며 라벨은 태그야. 이슈 본문을 수정할 때 본문 끝의 <!-- issue-note-attachments:... --> 주석이 있으면 첨부 메타데이터이므로 내용과 위치를 그대로 보존해줘.`;
   $: topRoute = routeStack.at(-1);
   $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
   $: contentRoute = contentRoutes.at(-1);
@@ -197,6 +199,16 @@
     }
     if (reason?.status === 403) return '이 작업에 필요한 저장소 권한이 없습니다.';
     return reason?.message || '알 수 없는 오류가 발생했습니다.';
+  }
+
+  async function copyMcpText(value, successMessage) {
+    try {
+      await navigator.clipboard.writeText(value);
+      notice = successMessage;
+      error = '';
+    } catch {
+      error = '클립보드에 복사하지 못했습니다.';
+    }
   }
 
   async function connect(showSuccess = true, restoring = false) {
@@ -799,6 +811,64 @@
                 onRename={renameRepositoryLabel}
                 onDelete={deleteRepositoryLabel}
               />
+
+              <details class="pat-guide mcp-guide mb-4">
+                <summary class="d-flex align-items-center justify-content-between gap-3">
+                  <span>
+                    <strong><i class="bi bi-robot me-2" aria-hidden="true"></i>MCP로 노트 사용하기</strong>
+                    <small class="d-block text-secondary mt-1">AI 도구에서 같은 GitHub Issues 읽기·쓰기</small>
+                  </span>
+                  <span class="guide-chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <div class="pat-guide-body border-top">
+                  <p class="small text-secondary">
+                    이 앱 전용 MCP 서버는 필요하지 않습니다. MCP 클라이언트에 GitHub의 공식
+                    MCP Server를 연결하면 같은 저장소의 이슈를 노트로 읽고 수정할 수 있습니다.
+                  </p>
+
+                  <div class="mcp-repository mb-3">
+                    <span class="small text-secondary">대상 저장소</span>
+                    <div class="input-group input-group-sm mt-1">
+                      <input class="form-control font-monospace" value={mcpRepository} readonly aria-label="MCP 대상 저장소" />
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        on:click={() => copyMcpText(mcpRepository, 'MCP 대상 저장소를 복사했습니다.')}
+                        disabled={!mcpRepository}
+                      ><i class="bi bi-copy" aria-hidden="true"></i> 복사</button>
+                    </div>
+                  </div>
+
+                  <ol class="pat-steps mb-3">
+                    <li>
+                      <strong>MCP 클라이언트에 공식 GitHub MCP Server를 추가합니다.</strong>
+                      <span>Remote URL은 https://api.githubcopilot.com/mcp/이며, 지원하지 않는 클라이언트는 로컬 서버를 사용할 수 있습니다.</span>
+                    </li>
+                    <li>
+                      <strong>GitHub 인증과 저장소 접근을 허용합니다.</strong>
+                      <span>노트 편집에는 Issues 읽기·쓰기, 첨부파일에는 Contents 읽기·쓰기가 필요합니다.</span>
+                    </li>
+                    <li>
+                      <strong>issues와 repos 도구 모음을 사용합니다.</strong>
+                      <span>이 브라우저의 PAT는 MCP 클라이언트에 전달되지 않으므로 OAuth 또는 별도 PAT로 인증해야 합니다.</span>
+                    </li>
+                  </ol>
+
+                  <label class="form-label small" for="mcp-usage-prompt">AI에게 처음 전달할 안내</label>
+                  <textarea id="mcp-usage-prompt" class="form-control form-control-sm mcp-prompt mb-2" readonly value={mcpUsagePrompt}></textarea>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary w-100 mb-2"
+                    on:click={() => copyMcpText(mcpUsagePrompt, 'MCP용 노트 안내를 복사했습니다.')}
+                  ><i class="bi bi-copy" aria-hidden="true"></i> 안내 문구 복사</button>
+                  <a
+                    class="btn btn-sm btn-outline-secondary w-100"
+                    href="https://github.com/github/github-mcp-server"
+                    target="_blank"
+                    rel="noreferrer"
+                  ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> 공식 설치 안내 열기</a>
+                </div>
+              </details>
             {/if}
 
             <button class="btn btn-primary btn-lg w-100" disabled={appState === 'connecting'}>
