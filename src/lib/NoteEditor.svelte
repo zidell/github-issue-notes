@@ -1,6 +1,7 @@
 <script>
   import { afterUpdate, onDestroy, onMount } from 'svelte';
   import TagPicker from './TagPicker.svelte';
+  import { automaticTitle } from './notes.js';
   import {
     createAttachmentComment,
     createIssue,
@@ -364,11 +365,6 @@
     } finally {
       refreshing = false;
     }
-  }
-
-  function automaticTitle(value) {
-    const firstLine = (value.split(/\r?\n/, 1)[0] || '').trim();
-    return Array.from(firstLine).slice(0, 50).join('');
   }
 
   async function uploadFiles(fileList) {
