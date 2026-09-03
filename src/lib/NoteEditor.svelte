@@ -679,7 +679,7 @@
       </button>
       {#if issue}
         <button
-          class="btn btn-sm btn-outline-secondary"
+          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
           disabled={saving || refreshing}
           on:click={refreshIssue}
           aria-label="현재 노트 새로고침"
@@ -690,6 +690,7 @@
           {:else}
             <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
           {/if}
+          <span>갱신</span>
         </button>
       {/if}
     </div>
