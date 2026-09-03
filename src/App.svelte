@@ -1025,7 +1025,7 @@
             </div>
           </div>
           {#if state === 'open'}
-            <button class="btn btn-sm btn-primary" on:click={newNote}>
+            <button class="btn btn-primary" on:click={newNote}>
               <i class="bi bi-plus-lg" aria-hidden="true"></i> 새 노트
             </button>
           {/if}

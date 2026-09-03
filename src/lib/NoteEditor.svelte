@@ -674,7 +674,7 @@
 <div class="inline-editor">
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
-      <button class="mobile-back" on:click={onBack} aria-label="목록으로 돌아가기">
+      <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label="목록으로 돌아가기">
         <i class="bi bi-arrow-left" aria-hidden="true"></i> 목록
       </button>
       {#if issue}
@@ -744,7 +744,7 @@
     </div>
     <div class="dropdown detail-toolbar-more">
       <button
-        class="btn btn-sm btn-outline-secondary"
+        class="btn btn-outline-secondary"
         type="button"
         data-bs-toggle="dropdown"
         data-bs-auto-close="outside"
