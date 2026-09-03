@@ -187,7 +187,7 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: .85rem; text-align: left; }
   .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
   .detail-toolbar-more-tag .tag-dropdown { right: calc(100% + .35rem); top: 0; left: auto; }
-  .note-row-preview.auto-title-preview { color: #e8e8e8; font-size: .86rem; font-weight: 500; }
+  .note-row-content .note-row-preview.auto-title-preview { color: #e8e8e8; font-size: .9rem; font-weight: 600; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
 }
 
