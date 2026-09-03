@@ -116,8 +116,8 @@ button, input, textarea { font: inherit; }
 .save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; }
 .save-status.is-saving { color: #60a5fa; }
 .editor-notice { flex: none; padding: .55rem .85rem; border-bottom: 1px solid #363636; background: #201b1b; font-size: .8rem; }
-.inline-editor-fields { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: clamp(1rem, 3vw, 2.5rem); font-family: var(--note-font); }
-.attachment-section { position: relative; flex: none; min-height: 96px; margin-bottom: .75rem; padding-bottom: .75rem; border-bottom: 1px solid #303030; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.inline-editor-fields { --editor-gutter: clamp(1rem, 3vw, 2.5rem); position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--editor-gutter); font-family: var(--note-font); }
+.attachment-section { position: relative; flex: none; min-height: 96px; margin: 0 var(--editor-gutter) .75rem; padding-bottom: .75rem; border-bottom: 1px solid #303030; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .attachment-section.is-loading > .attachment-list { opacity: .48; }
 .attachment-api-overlay { position: absolute; z-index: 3; inset: 0 0 .75rem; pointer-events: none; }
 .attachment-list { display: flex; gap: .5rem; overflow-x: auto; }
@@ -141,7 +141,7 @@ button, input, textarea { font: inherit; }
 .viewer-nav { position: absolute; top: 50%; width: 2.5rem; height: 3.5rem; border: 0; border-radius: 5px; color: #eee; background: rgba(50, 50, 50, .7); font-size: 2rem; transform: translateY(-50%); }
 .viewer-prev { left: .75rem; }
 .viewer-next { right: .75rem; }
-.editor-tags { flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin-bottom: .8rem; }
+.editor-tags { flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin: 0 var(--editor-gutter) .8rem; }
 .editor-tag { display: inline-flex; align-items: center; gap: .2rem; padding: .18rem .4rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 4px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .75rem; }
 .editor-tag button { padding: 0; border: 0; color: inherit; background: transparent; line-height: 1; opacity: .72; }
 .editor-tag button:hover { opacity: 1; }
@@ -157,9 +157,9 @@ button, input, textarea { font: inherit; }
 .tag-dropdown-list button:hover { color: #fff; background: #343b4d; }
 .tag-dropdown-list .create-tag { color: #b9ccff; }
 .tag-dropdown-empty { display: block; padding: .65rem .5rem; color: #777; font-size: .78rem; text-align: center; }
-.inline-title { flex: none; width: 100%; margin-bottom: 1rem; padding: 0 0 .75rem; border: 0; border-bottom: 1px solid #3a3a3a; outline: none; color: #eee; background: transparent; font-family: var(--note-font); font-size: calc(var(--note-font-size) * 1.35); font-weight: 650; line-height: 1.3; }
+.inline-title { flex: none; width: auto; margin: 0 var(--editor-gutter) 1rem; padding: 0 0 .75rem; border: 0; border-bottom: 1px solid #3a3a3a; outline: none; color: #eee; background: transparent; font-family: var(--note-font); font-size: calc(var(--note-font-size) * 1.35); font-weight: 650; line-height: 1.3; }
 .inline-title::placeholder, .inline-body::placeholder { color: #5f5f5f; }
-.inline-body { flex: 1; width: 100%; min-height: 0; padding: 0; resize: none; border: 0; outline: none; color: #ddd; background: transparent; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
+.inline-body { flex: 1; width: 100%; min-height: 0; padding: 0 var(--editor-gutter) var(--editor-gutter); resize: none; border: 0; outline: none; color: #ddd; background: transparent; font-family: var(--note-font); font-size: var(--note-font-size); line-height: var(--note-line-height); }
 .inline-body.is-dragging-files { border-radius: 6px; outline: 2px dashed #5680d8; outline-offset: .65rem; background: rgba(37, 99, 235, .08); }
 .inline-title[readonly], .inline-body[readonly] { cursor: default; }
 .label-dot { width: .55rem; height: .55rem; flex: none; border-radius: 50%; background: var(--label-color); }
