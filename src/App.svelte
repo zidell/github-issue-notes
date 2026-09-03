@@ -767,8 +767,13 @@
             {/if}
 
             <button class="btn btn-primary btn-lg w-100" disabled={appState === 'connecting'}>
-              <i class="bi bi-link-45deg" aria-hidden="true"></i>
-              {appState === 'connecting' ? '연결 확인 중…' : '연결하고 시작하기'}
+              <i
+                class={`bi ${topRoute?.screen === 'settings' ? 'bi-check-lg' : 'bi-link-45deg'}`}
+                aria-hidden="true"
+              ></i>
+              {appState === 'connecting'
+                ? topRoute?.screen === 'settings' ? '설정 저장 중…' : '연결 확인 중…'
+                : topRoute?.screen === 'settings' ? '설정 저장' : '연결하고 시작하기'}
             </button>
           </form>
 
