@@ -47,6 +47,7 @@
   let labelMutation = null;
   let labelMutationSequence = 0;
   let settingsRouteOverride = '';
+  let openingIssueId = '';
 
   $: emptyMessage = query
     ? '검색 결과가 없습니다.'
@@ -315,6 +316,7 @@
       };
       pendingAllocation = allocatePendingIssue(pendingNote);
     }
+    if (!contentRoutes.some((route) => route.screen === 'new')) openingIssueId = pendingNote.id;
     selectedIssue = pendingNote;
     router.navigate('new');
     if (hadQuery) loadIssues();
@@ -348,7 +350,13 @@
   }
 
   function selectNote(issue) {
+    const segment = issue.local ? 'new' : `note.${issue.number}`;
+    if (!contentRoutes.some((route) => route.segment === segment)) openingIssueId = issue.id;
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
+  }
+
+  function noteReady(issueId) {
+    if (openingIssueId === issueId) openingIssueId = '';
   }
 
   function noteSaved(savedIssue) {
@@ -991,17 +999,17 @@
           <div class="sidebar-message text-success">{notice}</div>
         {/if}
 
-        <div class="note-list">
-          {#if loading}
-            <div class="list-status">
-              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              불러오는 중…
-            </div>
-          {:else if visibleIssues.length === 0}
-            <div class="list-status">{emptyMessage}</div>
-          {:else}
-            {#each visibleIssues as issue (issue.id)}
-              <article class="note-list-row" class:active={selectedIssue?.id === issue.id}>
+        <div class="note-list" class:is-loading={loading}>
+          <div class="note-list-scroll">
+            {#if !loading && visibleIssues.length === 0}
+              <div class="list-status">{emptyMessage}</div>
+            {:else}
+              {#each visibleIssues as issue (issue.id)}
+              <article
+                class="note-list-row"
+                class:active={selectedIssue?.id === issue.id}
+                class:is-loading={openingIssueId === issue.id}
+              >
                 <button
                   class="note-row-hit-area"
                   on:click={() => selectNote(issue)}
@@ -1027,8 +1035,19 @@
                     {/each}
                   </div>
                 {/if}
+                {#if openingIssueId === issue.id}
+                  <span class="row-api-overlay" aria-label="노트 불러오는 중">
+                    <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+                  </span>
+                {/if}
               </article>
-            {/each}
+              {/each}
+            {/if}
+          </div>
+          {#if loading}
+            <div class="list-api-overlay" aria-label="목록 불러오는 중">
+              <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+            </div>
           {/if}
         </div>
       </aside>
@@ -1061,6 +1080,7 @@
               onSaved={noteSaved}
               onCreated={noteCreated}
               onDraftChange={pendingNoteChanged}
+              onReady={() => noteReady(route.screen === 'new' ? 'local-new-note' : routeIssue.id)}
               onLabelsAvailable={mergeRepositoryLabels}
               onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
               onBack={() => router.pop()}
