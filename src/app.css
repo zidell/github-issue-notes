@@ -66,8 +66,8 @@ button, input, textarea { font: inherit; }
 .sidebar-heading span { color: #888; font-size: .75rem; }
 .sidebar-profile { flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; }
 .sidebar-profile:hover .avatar { box-shadow: 0 0 0 2px #526487; }
-.sidebar-tools { --sidebar-tools-offset: 0px; position: relative; z-index: 1; flex: none; margin-bottom: calc(-1 * var(--sidebar-tools-offset)); padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform, margin-bottom; }
-.sidebar-tools.is-revealing { transition: transform 180ms ease-out, margin-bottom 180ms ease-out; }
+.sidebar-tools { --sidebar-tools-offset: 0px; position: sticky; z-index: 4; top: 0; padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform; }
+.sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .state-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search button { border: 1px solid #474747; color: #ccc; background: #252525; }
 .state-tabs button { padding: .35rem .5rem; font-size: .8rem; }
@@ -82,7 +82,7 @@ button, input, textarea { font: inherit; }
 .active-label-filter button { padding: 0 .2rem; border: 0; color: #9eafd8; background: transparent; font-size: 1rem; line-height: 1; }
 .sidebar-message { padding: .55rem .75rem; border-bottom: 1px solid #363636; background: #202020; font-size: .8rem; }
 
-.note-list { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.note-list { position: relative; height: 0; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .note-list-scroll { height: 100%; overflow-y: auto; scroll-behavior: smooth; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .note-list-row { position: relative; width: 100%; display: block; padding: .75rem; border: 0; border-bottom: 1px solid #303030; text-align: left; background: #1b1b1b; }
 .note-list-row:hover { background: #242424; }

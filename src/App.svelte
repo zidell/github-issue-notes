@@ -1031,54 +1031,6 @@
           {/if}
         </div>
 
-        <div
-          class="sidebar-tools"
-          class:is-revealing={sidebarToolsRevealing}
-          bind:this={sidebarToolsElement}
-          style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
-        >
-          <div class="state-tabs" role="group" aria-label="노트 상태">
-            <button class:active={state === 'open'} on:click={() => changeState('open')}>
-              <i class="bi bi-journal-text" aria-hidden="true"></i> 노트
-            </button>
-            <button class:active={state === 'closed'} on:click={() => changeState('closed')}>
-              <i class="bi bi-trash3" aria-hidden="true"></i> 휴지통
-            </button>
-          </div>
-          <form class="sidebar-search" on:submit|preventDefault={submitSearch}>
-            <input
-              type="search"
-              bind:value={query}
-              placeholder="검색 또는 #태그"
-              aria-label="노트 또는 태그 검색"
-              list="sidebar-label-suggestions"
-            />
-            <datalist id="sidebar-label-suggestions">
-              {#each repositoryLabels as label (label.id || label.name)}
-                <option value={`#${label.name}`}></option>
-              {/each}
-            </datalist>
-            <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> 검색</button>
-            {#if query}
-              <button
-                type="button"
-                on:click={() => {
-                  query = '';
-                  loadIssues();
-                }}
-              ><i class="bi bi-x-lg" aria-hidden="true"></i> 지우기</button>
-            {/if}
-          </form>
-          {#if activeLabel}
-            <div class="active-label-filter">
-              <span>#{activeLabel}</span>
-              <button type="button" on:click={clearLabel} aria-label={`${activeLabel} 필터 해제`}>
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-              </button>
-            </div>
-          {/if}
-        </div>
-
         {#if error}
           <div class="sidebar-message text-danger">{error}</div>
         {/if}
@@ -1088,6 +1040,53 @@
 
         <div class="note-list" class:is-loading={loading}>
           <div class="note-list-scroll" on:scroll={handleSidebarScroll}>
+            <div
+              class="sidebar-tools"
+              class:is-revealing={sidebarToolsRevealing}
+              bind:this={sidebarToolsElement}
+              style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
+            >
+              <div class="state-tabs" role="group" aria-label="노트 상태">
+                <button class:active={state === 'open'} on:click={() => changeState('open')}>
+                  <i class="bi bi-journal-text" aria-hidden="true"></i> 노트
+                </button>
+                <button class:active={state === 'closed'} on:click={() => changeState('closed')}>
+                  <i class="bi bi-trash3" aria-hidden="true"></i> 휴지통
+                </button>
+              </div>
+              <form class="sidebar-search" on:submit|preventDefault={submitSearch}>
+                <input
+                  type="search"
+                  bind:value={query}
+                  placeholder="검색 또는 #태그"
+                  aria-label="노트 또는 태그 검색"
+                  list="sidebar-label-suggestions"
+                />
+                <datalist id="sidebar-label-suggestions">
+                  {#each repositoryLabels as label (label.id || label.name)}
+                    <option value={`#${label.name}`}></option>
+                  {/each}
+                </datalist>
+                <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> 검색</button>
+                {#if query}
+                  <button
+                    type="button"
+                    on:click={() => {
+                      query = '';
+                      loadIssues();
+                    }}
+                  ><i class="bi bi-x-lg" aria-hidden="true"></i> 지우기</button>
+                {/if}
+              </form>
+              {#if activeLabel}
+                <div class="active-label-filter">
+                  <span>#{activeLabel}</span>
+                  <button type="button" on:click={clearLabel} aria-label={`${activeLabel} 필터 해제`}>
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                  </button>
+                </div>
+              {/if}
+            </div>
             {#if !loading && visibleIssues.length === 0}
               <div class="list-status">{emptyMessage}</div>
             {:else}
