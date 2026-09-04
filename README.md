@@ -318,8 +318,10 @@ Vite의 `base`는 `./`이며 라우터와 매니페스트도 상대 경로를 �
 PAT, 이슈 응답을 캐시에 넣지 마세요. 캐시 정책이나 미리 캐시할 공개 파일 목록을
 바꿀 때는 `public/sw.js`의 `CACHE_NAME` 버전도 올리고, 온라인 갱신과 오프라인
 진입을 모두 확인하세요. Tauri 환경에서는 서비스 워커를 등록하지 않습니다.
-Cloudflare Pages는 `public/_headers`를 통해 CSP와 브라우저 보안 헤더를 적용합니다.
-GitHub API나 이미지 출처를 추가할 때는 필요한 출처만 CSP에 명시하세요.
+Cloudflare Pages처럼 `_headers`를 지원하는 호스팅에서는 `public/_headers`를 통해
+CSP와 브라우저 보안 헤더를 적용합니다. 이를 해석하지 않는 정적 호스팅에서도 핵심
+CSP가 작동하도록 `index.html`에 같은 정책의 메타 태그를 둡니다. GitHub API나 이미지
+출처를 추가할 때는 두 정책에 필요한 출처만 함께 명시하세요.
 
 Tauri에서 외부 HTTP(S) 링크는 `@tauri-apps/plugin-opener`로 시스템 기본
 브라우저에 전달합니다. 새 Tauri API를 추가할 때는 Rust 플러그인뿐 아니라
