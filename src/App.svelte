@@ -81,11 +81,11 @@
   $: isNewRoute = contentRoute?.screen === 'new';
   $: pendingMatchesLabel = !activeLabel || hasIssueLabel(pendingNote, activeLabel);
   $: visibleIssues = pendingNote && state === 'open' && !query && pendingMatchesLabel
-    ? [pendingNote, ...issues]
+    ? [pendingNote, ...issues.filter((issue) => issue.number !== pendingNote.number)]
     : issues;
-  $: displayedIssueCount = totalIssues + (
-    pendingNote && state === 'open' && !query && pendingMatchesLabel ? 1 : 0
-  );
+  $: displayedIssueCount = pendingNote && state === 'open' && !query && pendingMatchesLabel
+    ? Math.max(totalIssues, pendingNote.countBaseline + 1)
+    : totalIssues;
 
   onMount(() => {
     router.init();
@@ -392,6 +392,7 @@
         labels: activeLabel ? [{ name: activeLabel }] : [],
         updated_at: new Date().toISOString(),
         local: true,
+        countBaseline: totalIssues,
         allocation: 'creating'
       };
       pendingAllocation = allocatePendingIssue(pendingNote);
@@ -464,7 +465,7 @@
     query = '';
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
-    totalIssues += 1;
+    totalIssues = Math.max(totalIssues, (pendingNote?.countBaseline ?? totalIssues) + 1);
     pendingNote = null;
     pendingAllocation = null;
     if (newNoteIsActive) selectedIssue = savedIssue;
