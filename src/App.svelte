@@ -10,17 +10,21 @@
   import {
     createIssue,
     createLabel,
+    listExpiredClosedIssues,
     listIssuesPage,
     listLabels,
     removeLabel,
     renameLabel,
+    purgeIssueAttachments,
     searchIssuesPage,
     setIssueState,
     verifyConnection
   } from './lib/github.js';
 
   const STORAGE_KEY = 'issue-note.settings.v1';
+  const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
   const BACKGROUND_REFRESH_MS = 60 * 60 * 1000;
+  const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
 
   let token = '';
@@ -37,6 +41,7 @@
   let pendingAllocation = null;
   let externalPasteRequest = null;
   let pasteRequestSequence = 0;
+  let pruningExpiredAttachments = false;
   let state = 'open';
   let query = '';
   let activeLabel = '';
@@ -244,6 +249,44 @@
     return Math.min(maximum, Math.max(minimum, number));
   }
 
+  function shouldPruneExpiredAttachments() {
+    try {
+      const lastPruned = Number(JSON.parse(localStorage.getItem(ATTACHMENT_PRUNE_STORAGE_KEY) || '{}')[repo]);
+      return !Number.isFinite(lastPruned) || Date.now() - lastPruned >= ATTACHMENT_PRUNE_INTERVAL_MS;
+    } catch {
+      return true;
+    }
+  }
+
+  function markExpiredAttachmentsPruned() {
+    try {
+      const prunedByRepository = JSON.parse(localStorage.getItem(ATTACHMENT_PRUNE_STORAGE_KEY) || '{}');
+      prunedByRepository[repo] = Date.now();
+      localStorage.setItem(ATTACHMENT_PRUNE_STORAGE_KEY, JSON.stringify(prunedByRepository));
+    } catch {
+      // 정리 완료 시각을 기록하지 못해도 다음 연결 시 안전하게 다시 확인한다.
+    }
+  }
+
+  async function pruneExpiredAttachments() {
+    if (pruningExpiredAttachments || !shouldPruneExpiredAttachments()) return;
+    pruningExpiredAttachments = true;
+    const requestedToken = token;
+    const requestedRepo = repo;
+    try {
+      const expiredIssues = await listExpiredClosedIssues(requestedToken, requestedRepo);
+      for (const expiredIssue of expiredIssues) {
+        if (selectedIssue?.number === expiredIssue.number) continue;
+        await purgeIssueAttachments(requestedToken, requestedRepo, expiredIssue.number);
+      }
+      if (token === requestedToken && repo === requestedRepo) markExpiredAttachmentsPruned();
+    } catch {
+      // 백그라운드 정리 실패는 노트 사용 흐름을 방해하지 않고 다음 연결 때 재시도한다.
+    } finally {
+      pruningExpiredAttachments = false;
+    }
+  }
+
   function repositoryName(value) {
     const cleaned = value
       .trim()
@@ -315,6 +358,7 @@
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
+      pruneExpiredAttachments();
       if (fromSettings) {
         settingsSnapshot = null;
         router.pop();

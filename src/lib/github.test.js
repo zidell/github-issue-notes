@@ -7,8 +7,10 @@ import {
   getIssue,
   listIssueAttachmentComments,
   listIssueAttachmentFiles,
+  listExpiredClosedIssues,
   listIssues,
   listIssuesPage,
+  purgeIssueAttachments,
   renameLabel,
   searchIssues,
   searchIssuesPage,
@@ -182,6 +184,19 @@ describe('GitHub API client', () => {
     expect(result.totalCount).toBe(61);
   });
 
+  it('30일이 지난 닫힌 이슈만 오래된 순서로 조회한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ items: [{ id: 1, number: 31 }] }));
+
+    const result = await listExpiredClosedIssues('token', 'owner/repo', Date.UTC(2026, 8, 4));
+    const url = new URL(fetch.mock.calls[0][0]);
+
+    expect(result).toEqual([{ id: 1, number: 31 }]);
+    expect(url.searchParams.get('q')).toBe('repo:owner/repo is:issue is:closed closed:<2026-08-05');
+    expect(url.searchParams.get('sort')).toBe('updated');
+    expect(url.searchParams.get('order')).toBe('asc');
+    expect(url.searchParams.get('per_page')).toBe('100');
+  });
+
   it('이슈 생성과 수정에 제목·본문·라벨만 전송한다', async () => {
     const note = { title: '제목', body: '본문', labels: ['개인'], ignored: true };
     fetch
@@ -333,6 +348,29 @@ describe('GitHub API client', () => {
       message: 'Delete Issue Note attachment: 여행 사진.png',
       sha: 'file-sha'
     });
+  });
+
+  it('만료된 노트의 연결된 첨부와 고아 첨부를 함께 정리한다', async () => {
+    const linked = attachmentComment(7, 31, 'linked.png');
+    fetch
+      .mockResolvedValueOnce(jsonResponse([linked]))
+      .mockResolvedValueOnce(jsonResponse([
+        { type: 'file', name: 'linked.png', path: '.issue-note-assets/issues/31/linked.png', sha: 'linked-sha', size: 7 },
+        { type: 'file', name: 'orphan.png', path: '.issue-note-assets/issues/31/orphan.png', sha: 'orphan-sha', size: 8 }
+      ]))
+      .mockResolvedValueOnce(jsonResponse({ commit: { sha: '1' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ commit: { sha: '2' } }));
+
+    await expect(purgeIssueAttachments('token', 'owner/repo', 31)).resolves.toEqual({
+      deletedFiles: 2,
+      deletedComments: 1
+    });
+
+    expect(fetch.mock.calls).toHaveLength(5);
+    expect(fetch.mock.calls[2][1].method).toBe('DELETE');
+    expect(fetch.mock.calls[3][0]).toContain('/issues/comments/7');
+    expect(fetch.mock.calls[4][1].method).toBe('DELETE');
   });
 
   it('잘못된 저장소 형식은 fetch 전에 거부한다', async () => {

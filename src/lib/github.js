@@ -138,6 +138,16 @@ export async function searchIssuesPage(token, repoInput, state, term, label = ''
   };
 }
 
+export async function listExpiredClosedIssues(token, repoInput, now = Date.now(), pageSize = 100) {
+  const repo = normalizeRepo(repoInput);
+  const query = `repo:${repo} is:issue is:closed closed:<${closedIssueCutoff(now)}`;
+  const data = await request(
+    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=asc&per_page=${pageSize}&page=1`,
+    token
+  );
+  return issueOnly(data.items);
+}
+
 function closedIssueCutoff(now) {
   const cutoff = new Date(now);
   cutoff.setUTCDate(cutoff.getUTCDate() - CLOSED_ISSUE_RETENTION_DAYS);
@@ -359,4 +369,32 @@ export async function deleteAttachment(token, repoInput, attachment) {
       sha: attachment.sha
     })
   });
+}
+
+export async function purgeIssueAttachments(token, repoInput, issueNumber) {
+  const [comments, files] = await Promise.all([
+    listIssueAttachmentComments(token, repoInput, issueNumber),
+    listIssueAttachmentFiles(token, repoInput, issueNumber)
+  ]);
+  const filesByPath = new Map(files.map((file) => [file.path, file]));
+  let deletedFiles = 0;
+  let deletedComments = 0;
+
+  for (const comment of comments) {
+    const file = filesByPath.get(comment.path);
+    if (file) {
+      await deleteAttachment(token, repoInput, file);
+      filesByPath.delete(comment.path);
+      deletedFiles += 1;
+    }
+    await deleteAttachmentComment(token, repoInput, comment.commentId);
+    deletedComments += 1;
+  }
+
+  for (const file of filesByPath.values()) {
+    await deleteAttachment(token, repoInput, file);
+    deletedFiles += 1;
+  }
+
+  return { deletedFiles, deletedComments };
 }
