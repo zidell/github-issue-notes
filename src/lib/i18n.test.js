@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { dtrans } from './i18n.js';
+import { normalizeLocale, setAppLocale, translate } from './i18n.js';
 
-describe('dtrans', () => {
-  it('한국어 브라우저에는 첫 번째 인자를 반환한다', () => {
-    expect(dtrans('목록', 'List', 'ko-KR')).toBe('목록');
-    expect(dtrans('목록', 'List', 'ko')).toBe('목록');
+describe('i18n', () => {
+  it('지원하는 브라우저 언어를 앱 locale로 정규화한다', () => {
+    expect(normalizeLocale('ko-KR')).toBe('ko');
+    expect(normalizeLocale('zh-TW')).toBe('zh-CN');
+    expect(normalizeLocale('ja-JP')).toBe('ja');
+    expect(normalizeLocale('de-DE')).toBe('de');
+    expect(normalizeLocale('fr-FR')).toBe('fr');
+    expect(normalizeLocale('it-IT')).toBe('it');
+    expect(normalizeLocale('es-ES')).toBe('en');
   });
 
-  it('그 밖의 언어와 언어 정보가 없는 환경에서는 영어를 반환한다', () => {
-    expect(dtrans('목록', 'List', 'en-US')).toBe('List');
-    expect(dtrans('목록', 'List', 'ja-JP')).toBe('List');
-    expect(dtrans('목록', 'List', '')).toBe('List');
+  it('locale 변경과 ICU 변수 치환을 지원한다', () => {
+    setAppLocale('ko');
+    expect(translate('dynamic.noteCount', { count: 12 })).toBe('12개');
+    setAppLocale('en');
+    expect(translate('dynamic.noteCount', { count: 12 })).toBe('12 notes');
   });
 });

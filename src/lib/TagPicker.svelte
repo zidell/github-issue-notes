@@ -1,7 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
   import { tagColorForName } from './colors.js';
-  import { dtrans } from './i18n.js';
+  import { _ } from 'svelte-i18n';
 
   export let availableLabels = [];
   export let selectedLabels = [];
@@ -83,7 +83,7 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     on:click={toggle}
-  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i> {toolbar ? dtrans('태그', 'Tags') : dtrans('추가', 'Add')}</button>
+  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i> {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}</button>
   {#if open}
     <div class="tag-dropdown">
       <input
@@ -91,11 +91,11 @@
         bind:value={search}
         on:keydown={handleKeydown}
         on:keyup={(event) => event.key === 'Escape' && event.stopPropagation()}
-        placeholder={dtrans('태그 검색 또는 생성', 'Search or create a tag')}
+        placeholder={$_("m.eb7b580e41")}
         maxlength="51"
-        aria-label={dtrans('태그 검색 또는 생성', 'Search or create a tag')}
+        aria-label={$_("m.eb7b580e41")}
       />
-      <div class="tag-dropdown-list" aria-label={dtrans('저장소 라벨', 'Repository labels')}>
+      <div class="tag-dropdown-list" aria-label={$_("m.9e704d11d1")}>
         {#each filteredLabels as label (label.id || label.name)}
           <button type="button" on:click={() => select(label.name)}>
             <span class="label-dot" style={`--label-color:#${label.color || tagColorForName(label.name)}`}></span>
@@ -105,10 +105,10 @@
         {#if canCreate}
           <button type="button" class="create-tag" on:click={() => select(newTagName)}>
             <span class="label-dot" style={`--label-color:#${tagColorForName(newTagName)}`}></span>
-            {dtrans(`#${newTagName} 새로 만들기`, `Create #${newTagName}`)}
+            {$_('dynamic.createTag', { values: { name: newTagName } })}
           </button>
         {:else if !filteredLabels.length}
-          <span class="tag-dropdown-empty">{dtrans('추가할 태그가 없습니다.', 'No tags available to add.')}</span>
+          <span class="tag-dropdown-empty">{$_("m.c10d35b9eb")}</span>
         {/if}
       </div>
     </div>

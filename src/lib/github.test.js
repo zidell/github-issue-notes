@@ -135,6 +135,21 @@ describe('GitHub API client', () => {
     expect(result.items).toHaveLength(1);
   });
 
+  it('설정한 목록 단위를 per_page와 다음 페이지 계산에 사용한다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({
+      total_count: 41,
+      items: Array.from({ length: 20 }, (_, index) => ({ id: index + 21 }))
+    }));
+
+    const result = await searchIssuesPage(
+      'token', 'owner/repo', 'open', '검색어', '', 2, Date.now(), 20
+    );
+    const url = new URL(fetch.mock.calls[0][0]);
+
+    expect(url.searchParams.get('per_page')).toBe('20');
+    expect(result.hasMore).toBe(true);
+  });
+
   it('제목과 본문을 대상으로 저장소와 태그를 포함해 검색한다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse({
       items: [{ id: 1, title: '결과' }, { id: 2, pull_request: {} }]

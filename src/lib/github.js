@@ -1,9 +1,9 @@
 import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
 import { tagColorForName } from './colors.js';
-import { dtrans } from './i18n.js';
+import { translate } from './i18n.js';
 
 const API_ROOT = 'https://api.github.com';
-export const ISSUE_PAGE_SIZE = 30;
+export const DEFAULT_ISSUE_PAGE_SIZE = 30;
 export const CLOSED_ISSUE_RETENTION_DAYS = 30;
 
 function headers(token) {
@@ -35,7 +35,7 @@ async function request(path, token, options = {}) {
       // GitHub가 빈 응답을 보내는 경우 상태 문구를 사용한다.
     }
 
-    const error = new Error(message || response.statusText || dtrans('GitHub 요청에 실패했습니다.', 'GitHub request failed.'));
+    const error = new Error(message || response.statusText || translate('errors.githubRequest'));
     error.status = response.status;
     error.remaining = response.headers.get('x-ratelimit-remaining');
     error.reset = response.headers.get('x-ratelimit-reset');
@@ -65,7 +65,7 @@ function normalizeRepo(value) {
     .replace(/^\/+|\/+$/g, '');
 
   if (!/^[^/\s]+\/[^/\s]+$/.test(cleaned)) {
-    throw new Error(dtrans('저장소를 owner/repository 형식으로 입력해주세요.', 'Enter the repository as owner/repository.'));
+    throw new Error(translate('errors.repositoryFormat'));
   }
   return cleaned;
 }
@@ -86,16 +86,16 @@ export async function listIssues(token, repoInput, state = 'open', label = '') {
   return result.items;
 }
 
-export async function listIssuesPage(token, repoInput, state = 'open', label = '', page = 1, now = Date.now()) {
+export async function listIssuesPage(token, repoInput, state = 'open', label = '', page = 1, now = Date.now(), pageSize = DEFAULT_ISSUE_PAGE_SIZE) {
   const repo = normalizeRepo(repoInput);
   if (state === 'closed') {
-    return searchIssuesPage(token, repo, state, '', label, page, now);
+    return searchIssuesPage(token, repo, state, '', label, page, now, pageSize);
   }
   const params = new URLSearchParams({
     state,
     sort: 'updated',
     direction: 'desc',
-    per_page: String(ISSUE_PAGE_SIZE),
+    per_page: String(pageSize),
     page: String(page)
   });
   if (label) params.set('labels', label);
@@ -119,7 +119,7 @@ export async function searchIssues(token, repoInput, state, term, label = '') {
   return result.items;
 }
 
-export async function searchIssuesPage(token, repoInput, state, term, label = '', page = 1, now = Date.now()) {
+export async function searchIssuesPage(token, repoInput, state, term, label = '', page = 1, now = Date.now(), pageSize = DEFAULT_ISSUE_PAGE_SIZE) {
   const repo = normalizeRepo(repoInput);
   const labelQuery = label ? ` label:${JSON.stringify(label)}` : '';
   const termQuery = term.trim();
@@ -128,12 +128,12 @@ export async function searchIssuesPage(token, repoInput, state, term, label = ''
     : '';
   const query = `${termQuery ? `${termQuery} ` : ''}repo:${repo} is:issue is:${state}${termQuery ? ' in:title,body' : ''}${cutoffQuery}${labelQuery}`;
   const data = await request(
-    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${ISSUE_PAGE_SIZE}&page=${page}`,
+    `/search/issues?q=${encodeURIComponent(query)}&sort=updated&order=desc&per_page=${pageSize}&page=${page}`,
     token
   );
   return {
     items: issueOnly(data.items),
-    hasMore: page * ISSUE_PAGE_SIZE < Math.min(Number(data.total_count) || 0, 1000),
+    hasMore: page * pageSize < Math.min(Number(data.total_count) || 0, 1000),
     totalCount: Number(data.total_count) || 0
   };
 }
@@ -234,7 +234,7 @@ function safeFileName(name) {
 function issueAttachmentDirectory(issueNumber) {
   const normalizedNumber = Number(issueNumber);
   if (!Number.isInteger(normalizedNumber) || normalizedNumber <= 0) {
-    throw new Error(dtrans('첨부하기 전에 이슈 번호가 필요합니다.', 'An issue number is required before attaching files.'));
+    throw new Error(translate('errors.issueNumberRequired'));
   }
   return `.issue-note-assets/issues/${normalizedNumber}`;
 }
@@ -342,7 +342,7 @@ export async function downloadAttachment(token, repoInput, attachment) {
   });
 
   if (!response.ok) {
-    const error = new Error(response.statusText || dtrans('첨부 파일을 불러오지 못했습니다.', 'Could not load the attachment.'));
+    const error = new Error(response.statusText || translate('errors.attachmentLoad'));
     error.status = response.status;
     throw error;
   }

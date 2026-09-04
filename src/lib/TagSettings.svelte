@@ -1,6 +1,7 @@
 <script>
+  import { tick } from 'svelte';
   import { tagColorForName } from './colors.js';
-  import { dtrans } from './i18n.js';
+  import { _ } from 'svelte-i18n';
 
   export let labels = [];
   export let busy = '';
@@ -10,6 +11,7 @@
 
   let drafts = {};
   let newName = '';
+  let newNameInput;
 
   function draftValue(name) {
     return drafts[name] ?? name;
@@ -32,24 +34,27 @@
     onDelete(label);
   }
 
-  function create() {
+  async function create() {
     const name = newName.trim();
     if (!name) return;
-    onCreate(name);
+    await onCreate(name);
     newName = '';
+    await tick();
+    newNameInput?.focus();
   }
 </script>
 
 <fieldset class="editor-settings tag-settings mb-4">
-  <legend>{dtrans('태그 관리', 'Manage tags')}</legend>
+  <legend>{$_("m.b2f3136b1a")}</legend>
   <div class="tag-settings-create">
     <input
+      bind:this={newNameInput}
       class="form-control form-control-sm"
       bind:value={newName}
       maxlength="50"
-      placeholder={dtrans('새 태그 이름', 'New tag name')}
+      placeholder={$_("m.624842da43")}
       disabled={Boolean(busy)}
-      aria-label={dtrans('새 태그 이름', 'New tag name')}
+      aria-label={$_("m.624842da43")}
       on:keydown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -58,7 +63,7 @@
       }}
     />
     <button type="button" class="btn btn-sm btn-outline-secondary" disabled={Boolean(busy) || !newName.trim()} on:click={create}>
-      <i class="bi bi-plus-lg" aria-hidden="true"></i> {dtrans('추가', 'Add')}
+      <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.61cc55aa04")}
     </button>
   </div>
   {#if labels.length}
@@ -71,7 +76,7 @@
             value={draftValue(label.name)}
             maxlength="50"
             disabled={Boolean(busy)}
-            aria-label={dtrans(`${label.name} 태그 이름`, `${label.name} tag name`)}
+            aria-label={$_('dynamic.tagName', { values: { name: label.name } })}
             on:input={(event) => updateDraft(label.name, event.currentTarget.value)}
             on:keydown={(event) => {
               if (event.key === 'Enter') {
@@ -84,11 +89,11 @@
             class="btn btn-sm btn-outline-danger"
             disabled={Boolean(busy)}
             on:click={() => deleteLabel(label)}
-          ><i class="bi bi-trash3" aria-hidden="true"></i> {dtrans('삭제', 'Delete')}</button>
+          ><i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}</button>
         </div>
       {/each}
     </div>
   {:else}
-    <p class="small text-secondary mb-0">{dtrans('저장소에 등록된 태그가 없습니다.', 'No tags are registered in this repository.')}</p>
+    <p class="small text-secondary mb-0">{$_("m.2240ffb750")}</p>
   {/if}
 </fieldset>

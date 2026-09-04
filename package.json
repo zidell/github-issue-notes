@@ -20,7 +20,8 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "spa-stack-router": "^0.1.0",
-    "svelte": "^5.38.7"
+    "svelte": "^5.38.7",
+    "svelte-i18n": "^4.0.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.1.3",

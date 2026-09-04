@@ -1,20 +1,16 @@
 # Issue Note
 
-GitHub Issues를 데이터 저장소로 사용하는 서버 없는 Svelte 노트 앱입니다.
+개인용으로 사용하기 좋은 심플하고 안전한 노트 앱입니다. GitHub Issues를
+노트 앱처럼 사용할 수 있도록 인터페이스만 제공하며, 자체 데이터베이스는
+사용하지 않습니다.
 
-**데모:** [note.gitools.net](https://note.gitools.net)
+**데모 및 실사용 주소:** [note.gitools.net](https://note.gitools.net)
 
 ## 화면
 
 ### 데스크톱
 
 ![Issue Note 데스크톱 화면](docs/screenshots/desktop.png)
-
-### 모바일
-
-<p align="center">
-  <img src="docs/screenshots/mobile.png" alt="Issue Note 모바일 편집 화면" width="390">
-</p>
 
 ## 시작하기
 
@@ -71,7 +67,8 @@ Issues와 Contents의 Read and write 권한이 모두 필요합니다. `.issue-n
 앱의 첨부 연결이 깨질 수 있습니다.
 
 편집 내용은 1초 간격으로 브라우저의 로컬 초안에 저장되고, 마지막 입력 후
-5초가 지나면 GitHub Issue에 자동 저장됩니다. 기본 설정에서는 본문의 첫 줄을
+5초가 지나면 GitHub Issue에 자동 저장됩니다. 자동 저장 대기 시간은 환경설정에서
+3~30초로 바꿀 수 있습니다. 기본 설정에서는 본문의 첫 줄을
 trim한 뒤 앞 50자를 이슈 제목으로 사용합니다. 연결 설정에서 별도 제목 입력,
 글꼴, 글자 크기와 줄간격을 변경할 수 있습니다.
 
@@ -219,9 +216,10 @@ Svelte 컴포넌트는 현재 프로젝트와 같은 문법·상태 모델을 �
 - 목록 머리의 숫자는 현재 내려받은 페이지 수가 아니라 조건에 맞는 전체 이슈
   수입니다. 저장소 Issues API에는 전체 개수가 없어 첫 페이지를 읽을 때 Search
   API의 `total_count`도 함께 확인합니다.
-- 페이지 크기는 `src/lib/github.js`의 `ISSUE_PAGE_SIZE` 한 곳에서 관리합니다.
-  저장소 Issues API는 `Link` 헤더, Search API는 `total_count`로 다음 페이지를
-  판단합니다. pull request는 노트 목록에서 제외합니다.
+- 페이지 크기의 기본값은 `src/lib/github.js`의 `DEFAULT_ISSUE_PAGE_SIZE`이며,
+  사용자는 환경설정에서 10~100개 범위로 바꿀 수 있습니다. 저장소 Issues API는
+  `Link` 헤더, Search API는 `total_count`로 다음 페이지를 판단합니다. pull
+  request는 노트 목록에서 제외합니다.
 - Search API 결과는 최대 1,000개까지만 페이지를 제공하므로 다음 페이지 계산도
   이 한도를 넘기지 않습니다.
 - 검색어, 상태, 선택 태그가 바뀐 뒤 늦게 도착한 응답은 현재 목록에 섞지 않습니다.
@@ -238,10 +236,11 @@ Svelte 컴포넌트는 현재 프로젝트와 같은 문법·상태 모델을 �
 
 ### UI 언어
 
-사용자에게 보이는 문자열은 `dtrans(한국어, 영어)`로 작성합니다. 브라우저의 주
-언어가 `ko` 또는 `ko-*`일 때만 첫 번째 인자를 사용하고, 그 밖의 언어와 언어를
-확인할 수 없는 환경에서는 영어가 기본입니다. 버튼, 설명, 오류, 확인창,
-placeholder, `aria-label`을 추가할 때 한 언어 문자열만 직접 넣지 마세요.
+UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 카탈로그를 사용합니다.
+영어를 fallback으로 하며 한국어, 중국어(간체), 일본어, 독일어, 프랑스어,
+이탈리아어를 지원합니다. 기본값은 브라우저 언어 자동 감지이고 환경설정에서
+직접 바꿀 수 있습니다. 버튼, 설명, 오류, 확인창, placeholder, `aria-label`을
+추가할 때 반드시 메시지 키와 번역 카탈로그를 함께 갱신하세요.
 
 ### 라우팅과 반응형 UI
 
