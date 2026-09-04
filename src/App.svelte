@@ -113,6 +113,9 @@
       if (targetSignature === pendingRouteTransition) return;
       const hadContent = routeStack.some((route) => ['note', 'new'].includes(route.screen));
       const hasContent = stack.some((route) => ['note', 'new'].includes(route.screen));
+      // 목록으로 나갈 때의 모든 경로(버튼, Esc, 브라우저 뒤로가기)에서 현재
+      // 입력 포커스를 전환 스냅샷 전에 해제한다.
+      if (hadContent && !hasContent) document.activeElement?.blur?.();
       const transitionDirection = !hadContent && hasContent
         ? 'forward'
         : hadContent && !hasContent ? 'backward' : '';

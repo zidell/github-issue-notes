@@ -58,7 +58,7 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      open = false;
+      close();
       return;
     }
     if (event.key !== 'Enter') return;

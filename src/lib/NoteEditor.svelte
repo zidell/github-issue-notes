@@ -874,11 +874,16 @@
     changed();
   }
 
-  async function returnToList() {
-    // 태그 검색 input이 포커스를 잡고 있으면 모바일 키보드와 absolute 메뉴가
-    // 목록 전환 뒤에도 레이아웃에 영향을 줄 수 있어 먼저 닫고 blur 처리한다.
-    // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
+  function prepareReturnToList() {
+    // click보다 앞선 pointerdown에서 포커스를 끊어야, 열린 태그 검색 input이
+    // 좁은 화면 전환의 스크롤 위치에 영향을 남기지 않는다.
+    document.activeElement?.blur?.();
     mobileTagPicker?.close();
+  }
+
+  async function returnToList() {
+    // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
+    prepareReturnToList();
     await tick();
     onBack();
   }
@@ -894,7 +899,12 @@
 <div class="inline-editor">
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
-      <button class="btn btn-outline-secondary mobile-back" on:click={returnToList} aria-label={$_("m.747f5bd6a0")}>
+      <button
+        class="btn btn-outline-secondary mobile-back"
+        on:pointerdown={prepareReturnToList}
+        on:click={returnToList}
+        aria-label={$_("m.747f5bd6a0")}
+      >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
