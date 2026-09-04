@@ -273,7 +273,8 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 - 복구용 노트 초안: `localStorage`의 `issue-note.drafts.v1`
 - 로컬 초안 저장: 편집 중 1초 간격
 - GitHub 자동 저장: 마지막 수정 후 5초
-- 새 노트: `Ctrl+N` 또는 `Cmd+N`
+- 새 노트: 데스크톱 앱에서는 `Ctrl+N` 또는 `Cmd+N`, 브라우저에서는
+  `Ctrl+Alt+N` 또는 `Cmd+Option+N`
 - 강제 저장: `Ctrl+S` 또는 `Cmd+S`
 - 이탈 저장: `beforeunload`, `pagehide`, 문서가 숨겨지는 시점에 `keepalive` 요청
 
@@ -282,6 +283,10 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 보냅니다. 다른 노트로 이동하거나 페이지가 비활성화될 때의 저장 처리와 로컬
 초안 복구를 수정한다면 이 동작을 회귀 테스트하거나 직접 확인하세요. 저장이
 완료된 초안만 로컬 저장소에서 제거합니다.
+
+브라우저는 새 창 열기에 사용하는 `Ctrl+N`/`Cmd+N`을 웹 페이지보다 먼저
+처리할 수 있어 SPA가 안정적으로 가로챌 수 없습니다. 브라우저에서는 Alt/Option을
+함께 누르는 단축키를 사용하고, Tauri 데스크톱 앱에서는 원래 단축키를 사용합니다.
 
 PAT 입력은 password 필드로 표시합니다. 설정 화면을 다시 열 때 저장된 값은 입력란에
 채우지 않으며, 새 PAT를 입력한 경우에만 기존 값을 교체합니다. 빈 상태로 설정을
