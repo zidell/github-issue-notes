@@ -95,6 +95,7 @@
 
   onMount(() => {
     router.init();
+    window.addEventListener('keydown', handleGlobalKeydown);
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
       if (targetSignature === pendingRouteTransition) return;
@@ -174,6 +175,7 @@
 
     return () => {
       clearInterval(backgroundRefreshTimer);
+      window.removeEventListener('keydown', handleGlobalKeydown);
       unsubscribe();
       router.destroy();
     };
@@ -458,6 +460,20 @@
     selectedIssue = pendingNote;
     router.navigate('new');
     if (hadQuery || stateChanged) loadIssues();
+  }
+
+  function handleGlobalKeydown(event) {
+    if (
+      appState !== 'ready'
+      || topRoute?.screen === 'settings'
+      || event.repeat
+      || event.altKey
+      || event.shiftKey
+      || (!event.ctrlKey && !event.metaKey)
+      || event.key.toLocaleLowerCase() !== 'n'
+    ) return;
+    event.preventDefault();
+    newNote();
   }
 
   async function allocatePendingIssue(localNote) {

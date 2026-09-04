@@ -2,6 +2,7 @@
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
   import { tagColorForName } from './colors.js';
   import { _ } from 'svelte-i18n';
+  import BrailleSpinner from './BrailleSpinner.svelte';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -811,8 +812,8 @@
         <i class="bi bi-arrow-left" aria-hidden="true"></i> {$_("m.a1fffaaafb")}
       </button>
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
-      <span class="save-status" class:is-saving={saving}>
-        {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
+      <span class="save-status" aria-live="polite">
+        <BrailleSpinner active={saving} />
         {compactStatus}
       </span>
     </div>
