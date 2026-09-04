@@ -1,4 +1,6 @@
 import { composeAttachmentComment, parseAttachmentComment } from './attachments.js';
+import { tagColorForName } from './colors.js';
+import { dtrans } from './i18n.js';
 
 const API_ROOT = 'https://api.github.com';
 export const ISSUE_PAGE_SIZE = 30;
@@ -33,7 +35,7 @@ async function request(path, token, options = {}) {
       // GitHub가 빈 응답을 보내는 경우 상태 문구를 사용한다.
     }
 
-    const error = new Error(message || response.statusText || 'GitHub 요청에 실패했습니다.');
+    const error = new Error(message || response.statusText || dtrans('GitHub 요청에 실패했습니다.', 'GitHub request failed.'));
     error.status = response.status;
     error.remaining = response.headers.get('x-ratelimit-remaining');
     error.reset = response.headers.get('x-ratelimit-reset');
@@ -63,7 +65,7 @@ function normalizeRepo(value) {
     .replace(/^\/+|\/+$/g, '');
 
   if (!/^[^/\s]+\/[^/\s]+$/.test(cleaned)) {
-    throw new Error('저장소를 owner/repository 형식으로 입력해주세요.');
+    throw new Error(dtrans('저장소를 owner/repository 형식으로 입력해주세요.', 'Enter the repository as owner/repository.'));
   }
   return cleaned;
 }
@@ -74,10 +76,8 @@ function issueOnly(items) {
 
 export async function verifyConnection(token, repoInput) {
   const repo = normalizeRepo(repoInput);
-  const [user, repository] = await Promise.all([
-    request('/user', token),
-    request(`/repos/${repo}`, token)
-  ]);
+  const user = await request('/user', token);
+  const repository = await request(`/repos/${repo}`, token);
   return { user, repository, repo };
 }
 
@@ -178,7 +178,7 @@ export async function createLabel(token, repoInput, name, requestOptions = {}) {
     return await request(`/repos/${repo}/labels`, token, {
       ...requestOptions,
       method: 'POST',
-      body: JSON.stringify({ name, color: '4f46e5' })
+      body: JSON.stringify({ name, color: tagColorForName(name) })
     });
   } catch (reason) {
     // 라벨 목록이 오래된 동안 다른 창에서 같은 라벨을 만든 경우 기존 라벨을 사용한다.
@@ -234,7 +234,7 @@ function safeFileName(name) {
 function issueAttachmentDirectory(issueNumber) {
   const normalizedNumber = Number(issueNumber);
   if (!Number.isInteger(normalizedNumber) || normalizedNumber <= 0) {
-    throw new Error('첨부하기 전에 이슈 번호가 필요합니다.');
+    throw new Error(dtrans('첨부하기 전에 이슈 번호가 필요합니다.', 'An issue number is required before attaching files.'));
   }
   return `.issue-note-assets/issues/${normalizedNumber}`;
 }
@@ -342,7 +342,7 @@ export async function downloadAttachment(token, repoInput, attachment) {
   });
 
   if (!response.ok) {
-    const error = new Error(response.statusText || '첨부 파일을 불러오지 못했습니다.');
+    const error = new Error(response.statusText || dtrans('첨부 파일을 불러오지 못했습니다.', 'Could not load the attachment.'));
     error.status = response.status;
     throw error;
   }

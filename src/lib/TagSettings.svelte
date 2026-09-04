@@ -1,4 +1,7 @@
 <script>
+  import { tagColorForName } from './colors.js';
+  import { dtrans } from './i18n.js';
+
   export let labels = [];
   export let busy = '';
   export let onCreate = () => {};
@@ -38,15 +41,15 @@
 </script>
 
 <fieldset class="editor-settings tag-settings mb-4">
-  <legend>태그 관리</legend>
+  <legend>{dtrans('태그 관리', 'Manage tags')}</legend>
   <div class="tag-settings-create">
     <input
       class="form-control form-control-sm"
       bind:value={newName}
       maxlength="50"
-      placeholder="새 태그 이름"
+      placeholder={dtrans('새 태그 이름', 'New tag name')}
       disabled={Boolean(busy)}
-      aria-label="새 태그 이름"
+      aria-label={dtrans('새 태그 이름', 'New tag name')}
       on:keydown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -55,20 +58,20 @@
       }}
     />
     <button type="button" class="btn btn-sm btn-outline-secondary" disabled={Boolean(busy) || !newName.trim()} on:click={create}>
-      <i class="bi bi-plus-lg" aria-hidden="true"></i> 추가
+      <i class="bi bi-plus-lg" aria-hidden="true"></i> {dtrans('추가', 'Add')}
     </button>
   </div>
   {#if labels.length}
     <div class="tag-settings-list">
       {#each labels as label (label.id || label.name)}
         <div class="tag-settings-row">
-          <span class="label-dot" style={`--label-color:#${label.color || '4f46e5'}`}></span>
+          <span class="label-dot" style={`--label-color:#${label.color || tagColorForName(label.name)}`}></span>
           <input
             class="form-control form-control-sm"
             value={draftValue(label.name)}
             maxlength="50"
             disabled={Boolean(busy)}
-            aria-label={`${label.name} 태그 이름`}
+            aria-label={dtrans(`${label.name} 태그 이름`, `${label.name} tag name`)}
             on:input={(event) => updateDraft(label.name, event.currentTarget.value)}
             on:keydown={(event) => {
               if (event.key === 'Enter') {
@@ -81,11 +84,11 @@
             class="btn btn-sm btn-outline-danger"
             disabled={Boolean(busy)}
             on:click={() => deleteLabel(label)}
-          ><i class="bi bi-trash3" aria-hidden="true"></i> 삭제</button>
+          ><i class="bi bi-trash3" aria-hidden="true"></i> {dtrans('삭제', 'Delete')}</button>
         </div>
       {/each}
     </div>
   {:else}
-    <p class="small text-secondary mb-0">저장소에 등록된 태그가 없습니다.</p>
+    <p class="small text-secondary mb-0">{dtrans('저장소에 등록된 태그가 없습니다.', 'No tags are registered in this repository.')}</p>
   {/if}
 </fieldset>

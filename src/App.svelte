@@ -3,7 +3,9 @@
   import { createStackRouter } from 'spa-stack-router';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
-  import { markdownToPlainText } from './lib/notes.js';
+  import { tagColorForName } from './lib/colors.js';
+  import { dtrans } from './lib/i18n.js';
+  import { firstLinePreview, markdownToPlainText } from './lib/notes.js';
   import {
     createIssue,
     createLabel,
@@ -61,14 +63,17 @@
   let issueRefreshRequests = {};
 
   $: emptyMessage = query
-    ? '검색 결과가 없습니다.'
+    ? dtrans('검색 결과가 없습니다.', 'No results found.')
     : state === 'open'
-      ? '아직 작성한 노트가 없습니다.'
-      : '최근 30일 이내 삭제한 노트가 없습니다.';
+      ? dtrans('아직 작성한 노트가 없습니다.', 'No notes yet.')
+      : dtrans('최근 30일 이내 삭제한 노트가 없습니다.', 'No notes were deleted in the last 30 days.');
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = repositoryName(repo);
   $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
-  $: mcpUsagePrompt = `${mcpRepository || 'owner/repository'} 저장소의 GitHub Issues를 노트로 사용해줘. 열린 이슈는 일반 노트, 닫힌 이슈는 휴지통이며 라벨은 태그야. 각 첨부파일은 .issue-note-assets/issues/{이슈 번호}/ 폴더에 저장되고, 해당 이슈에는 <!-- issue-note-attachment:... --> 마커가 있는 전용 댓글 하나가 연결돼. 이 댓글은 앱이 첨부파일 목록과 GitHub 미리보기를 관리하는 내부 레코드이므로 일반 댓글로 해석하거나 수정·삭제하지 말아줘. 이슈 본문은 첨부 메타데이터 없이 노트 내용만 들어 있어.`;
+  $: mcpUsagePrompt = dtrans(
+    `${mcpRepository || 'owner/repository'} 저장소의 GitHub Issues를 노트로 사용해줘. 열린 이슈는 일반 노트, 닫힌 이슈는 휴지통이며 라벨은 태그야. 각 첨부파일은 .issue-note-assets/issues/{이슈 번호}/ 폴더에 저장되고, 해당 이슈에는 <!-- issue-note-attachment:... --> 마커가 있는 전용 댓글 하나가 연결돼. 이 댓글은 앱이 첨부파일 목록과 GitHub 미리보기를 관리하는 내부 레코드이므로 일반 댓글로 해석하거나 수정·삭제하지 말아줘. 이슈 본문은 첨부 메타데이터 없이 노트 내용만 들어 있어.`,
+    `Use GitHub Issues in ${mcpRepository || 'owner/repository'} as notes. Open issues are regular notes, closed issues are trash, and labels are tags. Each attachment is stored under .issue-note-assets/issues/{issue number}/ and linked to one dedicated issue comment containing an <!-- issue-note-attachment:... --> marker. This comment is an internal record used by the app for the attachment list and GitHub preview; do not interpret, edit, or delete it as a regular comment. The issue body contains only the note text without attachment metadata.`
+  );
   $: topRoute = routeStack.at(-1);
   $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
   $: contentRoute = contentRoutes.at(-1);
@@ -190,6 +195,10 @@
       : null;
   }
 
+  function normalizeToken(value) {
+    return String(value || '').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim();
+  }
+
   function makePatCreationUrl(value) {
     const selected = repositoryName(value);
     const url = new URL('https://github.com/settings/personal-access-tokens/new');
@@ -206,13 +215,13 @@
   }
 
   function friendlyError(reason) {
-    if (reason?.status === 401) return 'PAT가 올바르지 않거나 폐기되었습니다.';
-    if (reason?.status === 404) return '저장소를 찾을 수 없습니다. 이름과 PAT 권한을 확인해주세요.';
+    if (reason?.status === 401) return dtrans('PAT가 올바르지 않거나 폐기되었습니다.', 'The PAT is invalid or has been revoked.');
+    if (reason?.status === 404) return dtrans('저장소를 찾을 수 없습니다. 이름과 PAT 권한을 확인해주세요.', 'Repository not found. Check its name and the PAT repository access.');
     if (reason?.status === 403 && reason?.remaining === '0') {
-      return 'GitHub API 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.';
+      return dtrans('GitHub API 요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.', 'The GitHub API rate limit was reached. Try again later.');
     }
-    if (reason?.status === 403) return '이 작업에 필요한 저장소 권한이 없습니다.';
-    return reason?.message || '알 수 없는 오류가 발생했습니다.';
+    if (reason?.status === 403) return dtrans('이 작업에 필요한 저장소 권한이 없습니다.', 'The PAT does not have permission for this operation.');
+    return reason?.message || dtrans('알 수 없는 오류가 발생했습니다.', 'An unknown error occurred.');
   }
 
   async function copyMcpText(value, successMessage) {
@@ -221,13 +230,13 @@
       notice = successMessage;
       error = '';
     } catch {
-      error = '클립보드에 복사하지 못했습니다.';
+      error = dtrans('클립보드에 복사하지 못했습니다.', 'Could not copy to the clipboard.');
     }
   }
 
   async function connect(showSuccess = true, restoring = false) {
     const fromSettings = routeStack.at(-1)?.screen === 'settings' && Boolean(settingsSnapshot);
-    const requestedToken = token.trim();
+    const requestedToken = normalizeToken(token);
     const requestedRepo = repo;
     error = '';
     notice = '';
@@ -240,7 +249,7 @@
       user = result.user;
       repository = result.repository;
       persistSettings(result.repo);
-      if (showSuccess) notice = 'GitHub 저장소에 연결했습니다.';
+      if (showSuccess) notice = dtrans('GitHub 저장소에 연결했습니다.', 'Connected to the GitHub repository.');
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
       if (fromSettings) {
@@ -377,7 +386,7 @@
       pendingNote = {
         id: 'local-new-note',
         number: null,
-        title: '새 노트',
+        title: dtrans('새 노트', 'New note'),
         body: '',
         labels: activeLabel ? [{ name: activeLabel }] : [],
         updated_at: new Date().toISOString(),
@@ -394,7 +403,7 @@
   async function allocatePendingIssue(localNote) {
     try {
       const created = await createIssue(token, repo, {
-        title: '새 노트',
+        title: dtrans('새 노트', 'New note'),
         body: '',
         labels: localNote.labels.map((label) => label.name)
       });
@@ -413,7 +422,10 @@
         pendingNote = { ...pendingNote, allocation: 'failed' };
         if (isNewRoute) selectedIssue = pendingNote;
       }
-      error = `새 노트 번호를 만들지 못했습니다. ${friendlyError(reason)}`;
+      error = dtrans(
+        `새 노트 번호를 만들지 못했습니다. ${friendlyError(reason)}`,
+        `Could not allocate a number for the new note. ${friendlyError(reason)}`
+      );
       return null;
     }
   }
@@ -476,7 +488,7 @@
       || repositoryLabels.find(
         (item) => item.name.toLocaleLowerCase() === label?.name?.toLocaleLowerCase()
       )?.color
-      || '4f46e5';
+      || tagColorForName(label?.name);
   }
 
   function pendingNoteChanged(draft) {
@@ -489,7 +501,7 @@
     const labelsByName = new Map(
       [...repositoryLabels, ...nextLabels].map((label) => [label.name.toLocaleLowerCase(), label])
     );
-    repositoryLabels = [...labelsByName.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    repositoryLabels = [...labelsByName.values()].sort((a, b) => a.name.localeCompare(b.name, dtrans('ko', 'en')));
   }
 
   function replaceLabelInIssue(issue, currentName, nextName = '') {
@@ -543,13 +555,16 @@
       const savedLabel = await renameLabel(connectedToken, connectedRepo, label.name, normalizedName);
       repositoryLabels = repositoryLabels
         .map((item) => item.name === label.name ? savedLabel : item)
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        .sort((a, b) => a.name.localeCompare(b.name, dtrans('ko', 'en')));
       issues = issues.map((issue) => replaceLabelInIssue(issue, label.name, savedLabel.name));
       pendingNote = replaceLabelInIssue(pendingNote, label.name, savedLabel.name);
       selectedIssue = replaceLabelInIssue(selectedIssue, label.name, savedLabel.name);
       updateDraftLabels(connectedRepo, label.name, savedLabel.name);
       labelMutation = { id: ++labelMutationSequence, from: label.name, to: savedLabel.name };
-      notice = `#${label.name} 태그를 #${savedLabel.name}(으)로 변경했습니다.`;
+      notice = dtrans(
+        `#${label.name} 태그를 #${savedLabel.name}(으)로 변경했습니다.`,
+        `Renamed #${label.name} to #${savedLabel.name}.`
+      );
       if (activeLabel.toLocaleLowerCase() === label.name.toLocaleLowerCase()) {
         rewriteActiveTagRoute(savedLabel.name);
       }
@@ -567,7 +582,7 @@
       const label = repositoryLabels.find((item) => item.id === draft.label.id);
       if (!label) continue;
       if (!draft.nextName) {
-        error = `#${label.name} 태그 이름을 비워둘 수 없습니다.`;
+        error = dtrans(`#${label.name} 태그 이름을 비워둘 수 없습니다.`, `The name of #${label.name} cannot be empty.`);
         return false;
       }
       if (!await renameRepositoryLabel(label, draft.nextName)) return false;
@@ -629,7 +644,7 @@
       const connectedRepo = repository?.full_name || settingsSnapshot?.repo || repo;
       const savedLabel = await createLabel(connectedToken, connectedRepo, normalizedName);
       mergeRepositoryLabels([savedLabel]);
-      notice = `#${savedLabel.name} 태그를 추가했습니다.`;
+      notice = dtrans(`#${savedLabel.name} 태그를 추가했습니다.`, `Added #${savedLabel.name}.`);
     } catch (reason) {
       error = friendlyError(reason);
     } finally {
@@ -651,7 +666,7 @@
       selectedIssue = replaceLabelInIssue(selectedIssue, label.name);
       updateDraftLabels(connectedRepo, label.name);
       labelMutation = { id: ++labelMutationSequence, from: label.name, to: '' };
-      notice = `#${label.name} 태그를 삭제했습니다.`;
+      notice = dtrans(`#${label.name} 태그를 삭제했습니다.`, `Deleted #${label.name}.`);
       if (activeLabel.toLocaleLowerCase() === label.name.toLocaleLowerCase()) rewriteActiveTagRoute();
     } catch (reason) {
       error = friendlyError(reason);
@@ -675,8 +690,10 @@
   }
 
   async function moveIssue(issue, nextState) {
-    const action = nextState === 'closed' ? '휴지통으로 이동' : '복원';
-    if (!confirm(`“${issue.title}” 노트를 ${action}할까요?`)) return;
+    const action = nextState === 'closed'
+      ? dtrans('휴지통으로 이동', 'move to trash')
+      : dtrans('복원', 'restore');
+    if (!confirm(dtrans(`“${issue.title}” 노트를 ${action}할까요?`, `${action} “${issue.title}”?`))) return;
 
     error = '';
     try {
@@ -687,7 +704,9 @@
         selectedIssue = null;
         if (router.getDepth()) router.popTo(0);
       }
-      notice = nextState === 'closed' ? '노트를 휴지통으로 이동했습니다.' : '노트를 복원했습니다.';
+      notice = nextState === 'closed'
+        ? dtrans('노트를 휴지통으로 이동했습니다.', 'Moved the note to trash.')
+        : dtrans('노트를 복원했습니다.', 'Restored the note.');
     } catch (reason) {
       error = friendlyError(reason);
     }
@@ -731,7 +750,7 @@
   }
 
   function forgetSettings() {
-    if (!confirm('이 브라우저에 저장된 PAT와 저장소 설정을 삭제할까요?')) return;
+    if (!confirm(dtrans('이 브라우저에 저장된 PAT와 저장소 설정을 삭제할까요?', 'Delete the PAT and repository settings saved in this browser?'))) return;
     localStorage.removeItem(STORAGE_KEY);
     token = '';
     repo = '';
@@ -746,16 +765,20 @@
     settingsRouteOverride = '';
     appState = 'setup';
     router.navigate('/');
-    notice = '브라우저에 저장된 설정을 삭제했습니다.';
+    notice = dtrans('브라우저에 저장된 설정을 삭제했습니다.', 'Deleted the settings saved in this browser.');
   }
 
   function excerpt(body) {
     const text = markdownToPlainText(body);
-    return text || '내용이 없습니다.';
+    return text || dtrans('내용이 없습니다.', 'No content.');
+  }
+
+  function autoTitleExcerpt(body) {
+    return firstLinePreview(body) || dtrans('내용이 없습니다.', 'No content.');
   }
 
   function formatDate(value) {
-    return new Intl.DateTimeFormat('ko-KR', {
+    return new Intl.DateTimeFormat(dtrans('ko-KR', 'en-US'), {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -768,7 +791,7 @@
   <main class="boot-screen">
     <span class="brand-mark brand-mark-sm">IN</span>
     <span class="text-secondary small">
-      {appState === 'restoring' ? '노트를 불러오는 중…' : '시작하는 중…'}
+      {appState === 'restoring' ? dtrans('노트를 불러오는 중…', 'Loading notes…') : dtrans('시작하는 중…', 'Starting…')}
     </span>
   </main>
 {:else}
@@ -783,19 +806,19 @@
           <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
             <div>
               <h2 class="h4 fw-bold mb-2">
-                {topRoute?.screen === 'settings' ? '환경설정' : 'GitHub 저장소 연결'}
+                {topRoute?.screen === 'settings' ? dtrans('환경설정', 'Settings') : dtrans('GitHub 저장소 연결', 'Connect a GitHub repository')}
               </h2>
               <p class="text-secondary mb-0">
-                PAT는 이 브라우저에서 GitHub API로만 전송됩니다.
+                {dtrans('PAT는 이 브라우저에서 GitHub API로만 전송됩니다.', 'Your PAT is sent only from this browser to the GitHub API.')}
               </p>
             </div>
             {#if topRoute?.screen === 'settings'}
               <button
                 class="btn btn-sm btn-outline-secondary flex-shrink-0"
-                aria-label="환경설정 닫기"
+                aria-label={dtrans('환경설정 닫기', 'Close settings')}
                 disabled={appState === 'connecting'}
                 on:click={closeSettings}
-              ><i class="bi bi-x-lg" aria-hidden="true"></i> 닫기</button>
+              ><i class="bi bi-x-lg" aria-hidden="true"></i> {dtrans('닫기', 'Close')}</button>
             {/if}
           </div>
 
@@ -808,7 +831,7 @@
 
           <form on:submit|preventDefault={saveConfiguration}>
             <div class="mb-3">
-              <label for="repo" class="form-label fw-semibold">노트 저장소</label>
+              <label for="repo" class="form-label fw-semibold">{dtrans('노트 저장소', 'Notes repository')}</label>
               <input
                 id="repo"
                 class="form-control form-control-lg"
@@ -819,7 +842,7 @@
               />
               <div class="form-text text-warning">
                 <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                개인 노트가 공개되지 않도록 저장소는 반드시 Private으로 설정하세요.
+                {dtrans('개인 노트가 공개되지 않도록 저장소는 반드시 Private으로 설정하세요.', 'Set the repository to Private so your personal notes are not public.')}
               </div>
             </div>
 
@@ -827,28 +850,28 @@
               <details class="pat-guide mb-3">
                 <summary class="d-flex align-items-center justify-content-between gap-3">
                   <span>
-                    <strong>사용할 저장소가 아직 없나요?</strong>
-                    <small class="d-block text-secondary mt-1">노트 전용 비공개 저장소 만들기</small>
+                    <strong>{dtrans('사용할 저장소가 아직 없나요?', 'Need a repository?')}</strong>
+                    <small class="d-block text-secondary mt-1">{dtrans('노트 전용 비공개 저장소 만들기', 'Create a private repository for notes')}</small>
                   </span>
                   <span class="guide-chevron" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="pat-guide-body border-top">
                   <ol class="pat-steps mb-3">
                     <li>
-                      <strong>GitHub의 새 저장소 화면을 엽니다.</strong>
-                      <span>로그인이 필요하면 먼저 GitHub 계정으로 로그인하세요.</span>
+                      <strong>{dtrans('GitHub의 새 저장소 화면을 엽니다.', 'Open GitHub’s new repository page.')}</strong>
+                      <span>{dtrans('로그인이 필요하면 먼저 GitHub 계정으로 로그인하세요.', 'Sign in to your GitHub account if prompted.')}</span>
                     </li>
                     <li>
-                      <strong>Owner와 Repository name을 정합니다.</strong>
-                      <span>예: 저장소 이름을 issue-notes로 지정합니다.</span>
+                      <strong>{dtrans('Owner와 Repository name을 정합니다.', 'Choose the owner and repository name.')}</strong>
+                      <span>{dtrans('예: 저장소 이름을 issue-notes로 지정합니다.', 'For example, name the repository issue-notes.')}</span>
                     </li>
                     <li>
-                      <strong>Visibility에서 반드시 Private을 선택하고 생성합니다.</strong>
-                      <span>Public 저장소에는 노트와 첨부파일이 모두 공개됩니다. 생성 후 위 입력칸에 owner/issue-notes 형식으로 입력하세요.</span>
+                      <strong>{dtrans('Visibility에서 반드시 Private을 선택하고 생성합니다.', 'Select Private under Visibility, then create it.')}</strong>
+                      <span>{dtrans('Public 저장소에는 노트와 첨부파일이 모두 공개됩니다. 생성 후 위 입력칸에 owner/issue-notes 형식으로 입력하세요.', 'Notes and attachments are public in a public repository. After creating it, enter owner/issue-notes above.')}</span>
                     </li>
                   </ol>
                   <a class="btn btn-outline-primary w-100" href="https://github.com/new" target="_blank" rel="noreferrer">
-                    <i class="bi bi-github" aria-hidden="true"></i> GitHub에서 비공개 저장소 만들기
+                    <i class="bi bi-github" aria-hidden="true"></i> {dtrans('GitHub에서 비공개 저장소 만들기', 'Create a private repository on GitHub')}
                   </a>
                 </div>
               </details>
@@ -858,58 +881,62 @@
               <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
               <input
                 id="token"
-                type="password"
+                type="text"
                 class="form-control form-control-lg font-monospace"
                 bind:value={token}
                 placeholder="github_pat_..."
                 autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+                inputmode="text"
                 spellcheck="false"
                 required
               />
               <div class="form-text">
-                Issues 읽기·쓰기가 필요합니다. 파일 첨부를 사용하려면 Contents 읽기·쓰기도
-                선택하세요. 토큰은 앱 서버로 전송되지 않고 이 디바이스의 브라우저에만
-                저장됩니다.
+                {dtrans(
+                  'Issues 읽기·쓰기가 필요합니다. 파일 첨부를 사용하려면 Contents 읽기·쓰기도 선택하세요. 토큰은 앱 서버로 전송되지 않고 이 디바이스의 브라우저에만 저장됩니다.',
+                  'Issues read and write access is required. To use attachments, also allow Contents read and write. The token is never sent to an app server and is stored only in this device’s browser.'
+                )}
               </div>
             </div>
 
             <details class="pat-guide mb-4">
               <summary class="d-flex align-items-center justify-content-between gap-3">
                 <span>
-                  <strong>PAT 발급이 처음인가요?</strong>
-                  <small class="d-block text-secondary mt-1">저장소 하나만 허용하는 방법</small>
+                  <strong>{dtrans('PAT 발급이 처음인가요?', 'New to personal access tokens?')}</strong>
+                  <small class="d-block text-secondary mt-1">{dtrans('저장소 하나만 허용하는 방법', 'Allow access to one repository only')}</small>
                 </span>
                 <span class="guide-chevron" aria-hidden="true">⌄</span>
               </summary>
               <div class="pat-guide-body border-top">
                 <ol class="pat-steps mb-4">
                   <li>
-                    <strong>GitHub 발급 화면을 엽니다.</strong>
-                    <span>아래 버튼은 만료 없음과 필요한 권한을 미리 입력합니다.</span>
+                    <strong>{dtrans('GitHub 발급 화면을 엽니다.', 'Open GitHub’s token creation page.')}</strong>
+                    <span>{dtrans('아래 버튼은 만료 없음과 필요한 권한을 미리 입력합니다.', 'The button below prefills no expiration and the required permissions.')}</span>
                   </li>
                   <li>
-                    <strong>Resource owner를 확인합니다.</strong>
+                    <strong>{dtrans('Resource owner를 확인합니다.', 'Check the resource owner.')}</strong>
                     <span>
                       {guideRepository
-                        ? `${guideRepository.owner} 계정이 선택되어야 합니다.`
-                        : '저장소 소유자 계정을 선택하세요.'}
+                        ? dtrans(`${guideRepository.owner} 계정이 선택되어야 합니다.`, `Select the ${guideRepository.owner} account.`)
+                        : dtrans('저장소 소유자 계정을 선택하세요.', 'Select the repository owner account.')}
                     </span>
                   </li>
                   <li>
-                    <strong>Repository access에서 Only select repositories를 고릅니다.</strong>
+                    <strong>{dtrans('Repository access에서 Only select repositories를 고릅니다.', 'Choose Only select repositories under Repository access.')}</strong>
                     <span>
                       {guideRepository
-                        ? `${guideRepository.fullName} 저장소 하나만 선택하세요.`
-                        : '위에 입력할 노트 저장소 하나만 선택하세요.'}
+                        ? dtrans(`${guideRepository.fullName} 저장소 하나만 선택하세요.`, `Select only ${guideRepository.fullName}.`)
+                        : dtrans('위에 입력할 노트 저장소 하나만 선택하세요.', 'Select only the notes repository entered above.')}
                     </span>
                   </li>
                   <li>
-                    <strong>Repository permissions를 확인합니다.</strong>
-                    <span>Issues와 Contents가 Read and write이면 됩니다.</span>
+                    <strong>{dtrans('Repository permissions를 확인합니다.', 'Check repository permissions.')}</strong>
+                    <span>{dtrans('Issues와 Contents가 Read and write이면 됩니다.', 'Set Issues and Contents to Read and write.')}</span>
                   </li>
                   <li>
-                    <strong>Generate token을 누르고 즉시 복사합니다.</strong>
-                    <span>생성된 PAT는 GitHub에서 다시 보여주지 않습니다.</span>
+                    <strong>{dtrans('Generate token을 누르고 즉시 복사합니다.', 'Select Generate token and copy it immediately.')}</strong>
+                    <span>{dtrans('생성된 PAT는 GitHub에서 다시 보여주지 않습니다.', 'GitHub will not show the generated PAT again.')}</span>
                   </li>
                 </ol>
                 <a
@@ -919,10 +946,12 @@
                   rel="noreferrer"
                 >
                   <i class="bi bi-key" aria-hidden="true"></i>
-                  {guideRepository ? `${guideRepository.name}용 PAT 발급하기` : 'PAT 발급 화면 열기'}
+                  {guideRepository
+                    ? dtrans(`${guideRepository.name}용 PAT 발급하기`, `Create a PAT for ${guideRepository.name}`)
+                    : dtrans('PAT 발급 화면 열기', 'Open PAT creation page')}
                 </a>
                 <p class="small text-secondary mt-2 mb-0">
-                  GitHub 발급 화면에서 저장소 선택은 직접 한 번 확인해야 합니다.
+                  {dtrans('GitHub 발급 화면에서 저장소 선택은 직접 한 번 확인해야 합니다.', 'Confirm the selected repository on GitHub before creating the token.')}
                 </p>
               </div>
             </details>
@@ -934,34 +963,34 @@
                 type="checkbox"
                 bind:checked={rememberToken}
               />
-              <label class="form-check-label" for="remember">이 브라우저에 PAT 기억하기</label>
+              <label class="form-check-label" for="remember">{dtrans('이 브라우저에 PAT 기억하기', 'Remember PAT in this browser')}</label>
             </div>
 
             <fieldset class="editor-settings mb-4">
-              <legend>편집기 설정</legend>
+              <legend>{dtrans('편집기 설정', 'Editor settings')}</legend>
               <div class="mb-3">
-                <label class="form-label" for="title-mode">제목 방식</label>
+                <label class="form-label" for="title-mode">{dtrans('제목 방식', 'Title mode')}</label>
                 <select id="title-mode" class="form-select" bind:value={titleMode}>
-                  <option value="first-line">본문 첫 줄의 앞 50자를 제목으로 사용</option>
-                  <option value="separate">제목을 별도 입력</option>
+                  <option value="first-line">{dtrans('본문 첫 줄의 앞 50자를 제목으로 사용', 'Use the first 50 characters of the first line')}</option>
+                  <option value="separate">{dtrans('제목을 별도 입력', 'Enter a separate title')}</option>
                 </select>
               </div>
               <div class="row g-2">
                 <div class="col-sm-6">
-                  <label class="form-label" for="editor-font">글꼴</label>
+                  <label class="form-label" for="editor-font">{dtrans('글꼴', 'Font')}</label>
                   <select id="editor-font" class="form-select" bind:value={editorFont}>
-                    <option value="system">시스템 기본</option>
-                    <option value="sans">고딕</option>
-                    <option value="serif">명조</option>
-                    <option value="mono">고정폭</option>
+                    <option value="system">{dtrans('시스템 기본', 'System default')}</option>
+                    <option value="sans">{dtrans('고딕', 'Sans serif')}</option>
+                    <option value="serif">{dtrans('명조', 'Serif')}</option>
+                    <option value="mono">{dtrans('고정폭', 'Monospace')}</option>
                   </select>
                 </div>
                 <div class="col-6 col-sm-3">
-                  <label class="form-label" for="font-size">크기</label>
+                  <label class="form-label" for="font-size">{dtrans('크기', 'Size')}</label>
                   <input id="font-size" class="form-control" type="number" min="12" max="32" step="1" bind:value={editorFontSize} />
                 </div>
                 <div class="col-6 col-sm-3">
-                  <label class="form-label" for="line-height">줄간격</label>
+                  <label class="form-label" for="line-height">{dtrans('줄간격', 'Line height')}</label>
                   <input id="line-height" class="form-control" type="number" min="1.2" max="2.5" step="0.1" bind:value={editorLineHeight} />
                 </div>
               </div>
@@ -979,64 +1008,66 @@
               <details class="pat-guide mcp-guide mb-4">
                 <summary class="d-flex align-items-center justify-content-between gap-3">
                   <span>
-                    <strong><i class="bi bi-robot me-2" aria-hidden="true"></i>MCP로 노트 사용하기</strong>
-                    <small class="d-block text-secondary mt-1">AI 도구에서 같은 GitHub Issues 읽기·쓰기</small>
+                    <strong><i class="bi bi-robot me-2" aria-hidden="true"></i>{dtrans('MCP로 노트 사용하기', 'Use notes through MCP')}</strong>
+                    <small class="d-block text-secondary mt-1">{dtrans('AI 도구에서 같은 GitHub Issues 읽기·쓰기', 'Read and write the same GitHub Issues from AI tools')}</small>
                   </span>
                   <span class="guide-chevron" aria-hidden="true">⌄</span>
                 </summary>
                 <div class="pat-guide-body border-top">
                   <p class="small text-secondary">
-                    이 앱 전용 MCP 서버는 필요하지 않습니다. MCP 클라이언트에 GitHub의 공식
-                    MCP Server를 연결하면 같은 저장소의 이슈를 노트로 읽고 수정할 수 있습니다.
+                    {dtrans(
+                      '이 앱 전용 MCP 서버는 필요하지 않습니다. MCP 클라이언트에 GitHub의 공식 MCP Server를 연결하면 같은 저장소의 이슈를 노트로 읽고 수정할 수 있습니다.',
+                      'No app-specific MCP server is required. Connect GitHub’s official MCP Server to your MCP client to read and edit issues in the same repository as notes.'
+                    )}
                   </p>
 
                   <div class="mcp-repository mb-3">
-                    <span class="small text-secondary">대상 저장소</span>
+                    <span class="small text-secondary">{dtrans('대상 저장소', 'Target repository')}</span>
                     <div class="input-group input-group-sm mt-1">
-                      <input class="form-control font-monospace" value={mcpRepository} readonly aria-label="MCP 대상 저장소" />
+                      <input class="form-control font-monospace" value={mcpRepository} readonly aria-label={dtrans('MCP 대상 저장소', 'MCP target repository')} />
                       <button
                         type="button"
                         class="btn btn-outline-secondary"
-                        on:click={() => copyMcpText(mcpRepository, 'MCP 대상 저장소를 복사했습니다.')}
+                        on:click={() => copyMcpText(mcpRepository, dtrans('MCP 대상 저장소를 복사했습니다.', 'Copied the MCP target repository.'))}
                         disabled={!mcpRepository}
-                      ><i class="bi bi-copy" aria-hidden="true"></i> 복사</button>
+                      ><i class="bi bi-copy" aria-hidden="true"></i> {dtrans('복사', 'Copy')}</button>
                     </div>
                   </div>
 
                   <ol class="pat-steps mb-3">
                     <li>
-                      <strong>MCP 클라이언트에 공식 GitHub MCP Server를 추가합니다.</strong>
-                      <span>Remote URL은 https://api.githubcopilot.com/mcp/이며, 지원하지 않는 클라이언트는 로컬 서버를 사용할 수 있습니다.</span>
+                      <strong>{dtrans('MCP 클라이언트에 공식 GitHub MCP Server를 추가합니다.', 'Add the official GitHub MCP Server to your MCP client.')}</strong>
+                      <span>{dtrans('Remote URL은 https://api.githubcopilot.com/mcp/이며, 지원하지 않는 클라이언트는 로컬 서버를 사용할 수 있습니다.', 'The remote URL is https://api.githubcopilot.com/mcp/. Clients without remote support can use the local server.')}</span>
                     </li>
                     <li>
-                      <strong>GitHub 인증과 저장소 접근을 허용합니다.</strong>
-                      <span>노트 편집에는 Issues 읽기·쓰기, 첨부파일에는 Contents 읽기·쓰기가 필요합니다.</span>
+                      <strong>{dtrans('GitHub 인증과 저장소 접근을 허용합니다.', 'Authorize GitHub and repository access.')}</strong>
+                      <span>{dtrans('노트 편집에는 Issues 읽기·쓰기, 첨부파일에는 Contents 읽기·쓰기가 필요합니다.', 'Editing notes requires Issues read and write; attachments require Contents read and write.')}</span>
                     </li>
                     <li>
-                      <strong>issues와 repos 도구 모음을 사용합니다.</strong>
-                      <span>본문·라벨은 이슈에, 첨부파일은 저장소 파일과 전용 이슈 댓글에 저장됩니다. 브라우저 PAT는 공유되지 않으므로 OAuth 또는 별도 PAT로 인증해야 합니다.</span>
+                      <strong>{dtrans('issues와 repos 도구 모음을 사용합니다.', 'Use the issues and repos toolsets.')}</strong>
+                      <span>{dtrans('본문·라벨은 이슈에, 첨부파일은 저장소 파일과 전용 이슈 댓글에 저장됩니다. 브라우저 PAT는 공유되지 않으므로 OAuth 또는 별도 PAT로 인증해야 합니다.', 'Bodies and labels are stored in issues; attachments are stored as repository files with dedicated issue comments. The browser PAT is not shared, so authenticate with OAuth or a separate PAT.')}</span>
                     </li>
                   </ol>
 
                   <p class="small text-secondary">
-                    첨부 댓글에는 GitHub에서 바로 볼 수 있는 이미지 또는 파일 링크와
-                    <code>&lt;!-- issue-note-attachment:... --&gt;</code> 마커가 함께 들어갑니다.
-                    AI가 노트 본문을 편집할 때 이 전용 댓글은 그대로 두어야 합니다.
+                    {dtrans('첨부 댓글에는 GitHub에서 바로 볼 수 있는 이미지 또는 파일 링크와', 'Attachment comments contain a GitHub-viewable image or file link and the')}
+                    {' '}<code>&lt;!-- issue-note-attachment:... --&gt;</code>{' '}
+                    {dtrans('마커가 함께 들어갑니다. AI가 노트 본문을 편집할 때 이 전용 댓글은 그대로 두어야 합니다.', 'marker. AI tools must preserve these dedicated comments when editing note bodies.')}
                   </p>
 
-                  <label class="form-label small" for="mcp-usage-prompt">AI에게 처음 전달할 안내</label>
+                  <label class="form-label small" for="mcp-usage-prompt">{dtrans('AI에게 처음 전달할 안내', 'Initial instructions for the AI')}</label>
                   <textarea id="mcp-usage-prompt" class="form-control form-control-sm mcp-prompt mb-2" readonly value={mcpUsagePrompt}></textarea>
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-primary w-100 mb-2"
-                    on:click={() => copyMcpText(mcpUsagePrompt, 'MCP용 노트 안내를 복사했습니다.')}
-                  ><i class="bi bi-copy" aria-hidden="true"></i> 안내 문구 복사</button>
+                    on:click={() => copyMcpText(mcpUsagePrompt, dtrans('MCP용 노트 안내를 복사했습니다.', 'Copied the MCP note instructions.'))}
+                  ><i class="bi bi-copy" aria-hidden="true"></i> {dtrans('안내 문구 복사', 'Copy instructions')}</button>
                   <a
                     class="btn btn-sm btn-outline-secondary w-100"
                     href="https://github.com/github/github-mcp-server"
                     target="_blank"
                     rel="noreferrer"
-                  ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> 공식 설치 안내 열기</a>
+                  ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {dtrans('공식 설치 안내 열기', 'Open official setup guide')}</a>
                 </div>
               </details>
             {/if}
@@ -1047,14 +1078,14 @@
                 aria-hidden="true"
               ></i>
               {appState === 'connecting'
-                ? topRoute?.screen === 'settings' ? '설정 저장 중…' : '연결 확인 중…'
-                : topRoute?.screen === 'settings' ? '설정 저장' : '연결하고 시작하기'}
+                ? topRoute?.screen === 'settings' ? dtrans('설정 저장 중…', 'Saving settings…') : dtrans('연결 확인 중…', 'Checking connection…')
+                : topRoute?.screen === 'settings' ? dtrans('설정 저장', 'Save settings') : dtrans('연결하고 시작하기', 'Connect and start')}
             </button>
           </form>
 
           {#if localStorage.getItem(STORAGE_KEY)}
             <button class="btn btn-link text-danger w-100 mt-3" on:click={forgetSettings}>
-              <i class="bi bi-trash3" aria-hidden="true"></i> 저장된 설정 삭제
+              <i class="bi bi-trash3" aria-hidden="true"></i> {dtrans('저장된 설정 삭제', 'Delete saved settings')}
             </button>
           {/if}
         </div>
@@ -1072,18 +1103,18 @@
         <div class="sidebar-heading">
           <div class="sidebar-heading-main">
             {#if user}
-              <button class="sidebar-profile" on:click={openSettings} aria-label="환경설정 열기">
+              <button class="sidebar-profile" on:click={openSettings} aria-label={dtrans('환경설정 열기', 'Open settings')}>
                 <img class="avatar" src={user.avatar_url} alt={user.login} />
               </button>
             {/if}
             <div class="sidebar-heading-title">
-              <h1>{activeLabel ? `#${activeLabel}` : state === 'open' ? '노트' : '휴지통'}</h1>
-              <span>{displayedIssueCount}개</span>
+              <h1>{activeLabel ? `#${activeLabel}` : state === 'open' ? dtrans('노트', 'Notes') : dtrans('휴지통', 'Trash')}</h1>
+              <span>{dtrans(`${displayedIssueCount}개`, `${displayedIssueCount} notes`)}</span>
             </div>
           </div>
           {#if state === 'open'}
             <button class="btn btn-primary" on:click={newNote}>
-              <i class="bi bi-plus-lg" aria-hidden="true"></i> 새 노트
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> {dtrans('새 노트', 'New note')}
             </button>
           {/if}
         </div>
@@ -1103,20 +1134,20 @@
               bind:this={sidebarToolsElement}
               style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
             >
-              <div class="state-tabs" role="group" aria-label="노트 상태">
+              <div class="state-tabs" role="group" aria-label={dtrans('노트 상태', 'Note status')}>
                 <button class:active={state === 'open'} on:click={() => changeState('open')}>
-                  <i class="bi bi-journal-text" aria-hidden="true"></i> 노트
+                  <i class="bi bi-journal-text" aria-hidden="true"></i> {dtrans('노트', 'Notes')}
                 </button>
                 <button class:active={state === 'closed'} on:click={() => changeState('closed')}>
-                  <i class="bi bi-trash3" aria-hidden="true"></i> 휴지통
+                  <i class="bi bi-trash3" aria-hidden="true"></i> {dtrans('휴지통', 'Trash')}
                 </button>
               </div>
               <form class="sidebar-search" on:submit|preventDefault={submitSearch}>
                 <input
                   type="search"
                   bind:value={query}
-                  placeholder="검색 또는 #태그"
-                  aria-label="노트 또는 태그 검색"
+                  placeholder={dtrans('검색 또는 #태그', 'Search or #tag')}
+                  aria-label={dtrans('노트 또는 태그 검색', 'Search notes or tags')}
                   list="sidebar-label-suggestions"
                 />
                 <datalist id="sidebar-label-suggestions">
@@ -1124,7 +1155,7 @@
                     <option value={`#${label.name}`}></option>
                   {/each}
                 </datalist>
-                <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> 검색</button>
+                <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {dtrans('검색', 'Search')}</button>
                 {#if query}
                   <button
                     type="button"
@@ -1132,13 +1163,13 @@
                       query = '';
                       loadIssues();
                     }}
-                  ><i class="bi bi-x-lg" aria-hidden="true"></i> 지우기</button>
+                  ><i class="bi bi-x-lg" aria-hidden="true"></i> {dtrans('지우기', 'Clear')}</button>
                 {/if}
               </form>
               {#if activeLabel}
                 <div class="active-label-filter">
                   <span>#{activeLabel}</span>
-                  <button type="button" on:click={clearLabel} aria-label={`${activeLabel} 필터 해제`}>
+                  <button type="button" on:click={clearLabel} aria-label={dtrans(`${activeLabel} 필터 해제`, `Clear ${activeLabel} filter`)}>
                     <i class="bi bi-x-lg" aria-hidden="true"></i>
                   </button>
                 </div>
@@ -1155,7 +1186,7 @@
                 <button
                   class="note-row-hit-area"
                   on:click={() => selectNote(issue)}
-                  aria-label={`${issue.title} 노트 열기`}
+                  aria-label={dtrans(`${issue.title} 노트 열기`, `Open note ${issue.title}`)}
                 ></button>
                 <div class="note-row-content">
                   {#if titleMode === 'separate'}
@@ -1164,9 +1195,9 @@
                   <span
                     class="note-row-preview"
                     class:auto-title-preview={titleMode === 'first-line'}
-                  >{excerpt(issue.body)}</span>
+                  >{titleMode === 'first-line' ? autoTitleExcerpt(issue.body) : excerpt(issue.body)}</span>
                   <span class="note-row-meta">
-                    {issue.local ? '로컬 초안' : `#${issue.number} · ${formatDate(issue.updated_at)}`}
+                    {issue.local ? dtrans('로컬 초안', 'Local draft') : `#${issue.number} · ${formatDate(issue.updated_at)}`}
                   </span>
                 </div>
                 {#if issue.labels?.length}
@@ -1190,14 +1221,14 @@
                     {:else}
                       <i class="bi bi-chevron-down" aria-hidden="true"></i>
                     {/if}
-                    더 보기
+                    {dtrans('더 보기', 'Load more')}
                   </button>
                 </div>
               {/if}
             {/if}
           </div>
           {#if loading}
-            <div class="list-api-overlay" aria-label="목록 불러오는 중">
+            <div class="list-api-overlay" aria-label={dtrans('목록 불러오는 중', 'Loading note list')}>
               <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
             </div>
           {/if}
@@ -1243,7 +1274,7 @@
           {/each}
         {:else}
           <div class="detail-empty">
-            <p>왼쪽 목록에서 노트를 선택하세요.</p>
+            <p>{dtrans('왼쪽 목록에서 노트를 선택하세요.', 'Select a note from the list.')}</p>
           </div>
         {/if}
       </section>

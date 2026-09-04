@@ -206,6 +206,10 @@ describe('GitHub API client', () => {
       .mockResolvedValueOnce(jsonResponse({ id: 7, name: '여행 계획', color: '123456' }));
 
     await expect(createLabel('token', 'owner/repo', '여행 계획')).resolves.toMatchObject({ id: 7 });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      name: '여행 계획',
+      color: expect.stringMatching(/^[0-9a-f]{6}$/)
+    });
     expect(fetch.mock.calls[1][0]).toBe(
       'https://api.github.com/repos/owner/repo/labels/%EC%97%AC%ED%96%89%20%EA%B3%84%ED%9A%8D'
     );
@@ -305,7 +309,7 @@ describe('GitHub API client', () => {
 
   it('잘못된 저장소 형식은 fetch 전에 거부한다', async () => {
     await expect(listIssues('token', 'owner-only')).rejects.toThrow(
-      '저장소를 owner/repository 형식으로 입력해주세요.'
+      'Enter the repository as owner/repository.'
     );
     expect(fetch).not.toHaveBeenCalled();
   });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { automaticTitle, linkAtCursor, markdownToPlainText, shortenMiddle } from './notes.js';
+import {
+  automaticTitle,
+  firstLinePreview,
+  linkAtCursor,
+  markdownToPlainText,
+  shortenMiddle
+} from './notes.js';
 
 describe('automaticTitle', () => {
   it('첫 줄의 앞뒤 공백을 제거해 제목으로 사용한다', () => {
@@ -66,5 +72,15 @@ describe('shortenMiddle', () => {
 
   it('짧은 주소는 그대로 둔다', () => {
     expect(shortenMiddle('https://example.com', 30)).toBe('https://example.com');
+  });
+});
+
+describe('firstLinePreview', () => {
+  it('첫 줄만 Markdown 없이 최대 50자로 표시한다', () => {
+    expect(firstLinePreview(`**${'가'.repeat(60)}**\n둘째 줄`)).toBe('가'.repeat(50));
+  });
+
+  it('짧은 첫 줄을 임의로 늘리지 않는다', () => {
+    expect(firstLinePreview('한\n아주 긴 둘째 줄')).toBe('한');
   });
 });

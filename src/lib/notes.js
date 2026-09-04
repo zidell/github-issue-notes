@@ -54,3 +54,8 @@ export function shortenMiddle(value, maxLength = 64) {
   const trailing = Math.floor(available / 2);
   return `${characters.slice(0, leading).join('')}…${characters.slice(-trailing).join('')}`;
 }
+
+export function firstLinePreview(value, maxLength = 50) {
+  const firstLine = String(value || '').split(/\r?\n/, 1)[0] || '';
+  return Array.from(markdownToPlainText(firstLine)).slice(0, maxLength).join('');
+}

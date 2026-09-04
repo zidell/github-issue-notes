@@ -1,5 +1,7 @@
 <script>
   import { onDestroy, onMount } from 'svelte';
+  import { tagColorForName } from './colors.js';
+  import { dtrans } from './i18n.js';
 
   export let availableLabels = [];
   export let selectedLabels = [];
@@ -81,7 +83,7 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     on:click={toggle}
-  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i> {toolbar ? '태그' : '추가'}</button>
+  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i> {toolbar ? dtrans('태그', 'Tags') : dtrans('추가', 'Add')}</button>
   {#if open}
     <div class="tag-dropdown">
       <input
@@ -89,24 +91,24 @@
         bind:value={search}
         on:keydown={handleKeydown}
         on:keyup={(event) => event.key === 'Escape' && event.stopPropagation()}
-        placeholder="태그 검색 또는 생성"
+        placeholder={dtrans('태그 검색 또는 생성', 'Search or create a tag')}
         maxlength="51"
-        aria-label="태그 검색 또는 생성"
+        aria-label={dtrans('태그 검색 또는 생성', 'Search or create a tag')}
       />
-      <div class="tag-dropdown-list" aria-label="저장소 라벨">
+      <div class="tag-dropdown-list" aria-label={dtrans('저장소 라벨', 'Repository labels')}>
         {#each filteredLabels as label (label.id || label.name)}
           <button type="button" on:click={() => select(label.name)}>
-            <span class="label-dot" style={`--label-color:#${label.color || '4f46e5'}`}></span>
+            <span class="label-dot" style={`--label-color:#${label.color || tagColorForName(label.name)}`}></span>
             #{label.name}
           </button>
         {/each}
         {#if canCreate}
           <button type="button" class="create-tag" on:click={() => select(newTagName)}>
-            <span class="label-dot" style="--label-color:#4f46e5"></span>
-            #{newTagName} 새로 만들기
+            <span class="label-dot" style={`--label-color:#${tagColorForName(newTagName)}`}></span>
+            {dtrans(`#${newTagName} 새로 만들기`, `Create #${newTagName}`)}
           </button>
         {:else if !filteredLabels.length}
-          <span class="tag-dropdown-empty">추가할 태그가 없습니다.</span>
+          <span class="tag-dropdown-empty">{dtrans('추가할 태그가 없습니다.', 'No tags available to add.')}</span>
         {/if}
       </div>
     </div>

@@ -1,5 +1,7 @@
 <script>
   import { afterUpdate, onDestroy, onMount } from 'svelte';
+  import { tagColorForName } from './colors.js';
+  import { dtrans } from './i18n.js';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -72,7 +74,6 @@
   let destroyed = false;
   let wasPaused = paused;
   let loadingAttachments = Number(remoteIssue?.comments || 0) > 0;
-  let status = archived ? '읽기 전용' : issue ? '저장됨' : '새 노트';
   let error = '';
   let localTimer;
   let remoteTimer;
@@ -92,14 +93,14 @@
   }[font] || 'sans-serif';
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
   $: compactStatus = archived
-    ? '읽기 전용'
+    ? dtrans('읽기 전용', 'Read only')
     : saveFailed
-      ? '저장 실패'
+      ? dtrans('저장 실패', 'Save failed')
       : saving || dirty
-        ? '저장 중'
+        ? dtrans('저장 중', 'Saving')
         : issue
-          ? '저장됨'
-          : '새 노트';
+          ? dtrans('저장됨', 'Saved')
+          : dtrans('새 노트', 'New note');
   $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
     remoteIssue = allocatedIssue;
   }
@@ -121,7 +122,6 @@
       body = recovered.body;
       labels = Array.isArray(recovered.labels) ? recovered.labels : labels;
       dirty = true;
-      status = '로컬 초안 복구됨';
       notifyDraftChange();
       scheduleRemoteSave();
     }
@@ -174,7 +174,6 @@
     store[repo] ||= {};
     store[repo][draftId] = { title, body, labels, savedAt: Date.now() };
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(store));
-    if (!saving && status !== '로컬 초안 복구됨') status = '로컬에 저장됨';
   }
 
   function removeLocalDraft() {
@@ -225,7 +224,6 @@
     saveFailed = false;
     revision += 1;
     error = '';
-    status = '입력 중…';
     notifyDraftChange();
     scheduleRemoteSave();
   }
@@ -233,7 +231,7 @@
   function notifyDraftChange() {
     const resolvedTitle = titleMode === 'first-line' ? automaticTitle(body) : title.trim();
     onDraftChange({
-      title: resolvedTitle || '새 노트',
+      title: resolvedTitle || dtrans('새 노트', 'New note'),
       body,
       labels: labels.map((name) => ({ name })),
       updated_at: new Date().toISOString()
@@ -247,7 +245,7 @@
 
   function currentNote() {
     const resolvedTitle = titleMode === 'first-line'
-      ? automaticTitle(body) || (attachments.length ? '첨부 노트' : '')
+      ? automaticTitle(body) || (attachments.length ? dtrans('첨부 노트', 'Attachment note') : '')
       : title.trim();
     return {
       title: resolvedTitle,
@@ -277,29 +275,23 @@
     if (saving) {
       if (force) {
         forceSaveQueued = true;
-        status = '현재 저장 후 다시 저장합니다…';
       }
       return;
     }
     if (!force && !dirty) return;
     if (paused && !allowPaused) {
-      status = '설정 열림 · 저장 대기 중…';
       if (!force) scheduleRemoteSave();
       return;
     }
     persistLocalDraft();
     const note = currentNote();
     if (!note.title) {
-      status = titleMode === 'first-line'
-        ? '첫 줄을 입력하면 자동 저장됩니다'
-        : '제목을 입력하면 자동 저장됩니다';
       return;
     }
     const signature = noteSignature(note);
     if (!force && signature === lastRemoteSignature) {
       dirty = false;
       removeLocalDraft();
-      status = 'GitHub에 저장됨';
       return;
     }
 
@@ -307,7 +299,6 @@
     title = note.title;
     saving = true;
     saveFailed = false;
-    status = 'GitHub에 저장 중…';
     error = '';
 
     try {
@@ -332,9 +323,7 @@
       if (savingRevision === revision && noteSignature(currentNote()) === signature) {
         dirty = false;
         removeLocalDraft();
-        status = 'GitHub에 저장됨';
       } else {
-        status = '변경사항 저장 대기 중…';
         scheduleRemoteSave();
       }
       saveFailed = false;
@@ -343,11 +332,10 @@
     } catch (reason) {
       saveFailed = true;
       error = reason?.status === 401
-        ? 'PAT가 올바르지 않거나 폐기되었습니다.'
+        ? dtrans('PAT가 올바르지 않거나 폐기되었습니다.', 'The PAT is invalid or has been revoked.')
         : reason?.status === 403
-          ? '저장 권한이 없습니다.'
-          : reason?.message || 'GitHub 저장에 실패했습니다.';
-      status = '저장 실패 · 로컬 초안 보관됨';
+          ? dtrans('저장 권한이 없습니다.', 'The PAT does not have write permission.')
+          : reason?.message || dtrans('GitHub 저장에 실패했습니다.', 'Could not save to GitHub.');
       scheduleRemoteSave(15000);
     } finally {
       saving = false;
@@ -369,7 +357,7 @@
     const targetIssue = issue || remoteIssue;
     if (!targetIssue?.number || saving || refreshing || backgroundRefreshing) return;
     if (background && dirty) return;
-    if (!background && dirty && !confirm('저장되지 않은 로컬 변경을 버리고 GitHub의 최신 내용으로 새로고침할까요?')) {
+    if (!background && dirty && !confirm(dtrans('저장되지 않은 로컬 변경을 버리고 GitHub의 최신 내용으로 새로고침할까요?', 'Discard unsaved local changes and reload the latest version from GitHub?'))) {
       return;
     }
 
@@ -407,17 +395,13 @@
       revision += 1;
       lastRemoteSignature = noteSignature({ title, body, labels });
       removeLocalDraft();
-      status = archived
-        ? `읽기 전용 · ${background ? '최신 내용 반영됨' : '새로고침됨'}`
-        : `GitHub에서 ${background ? '최신 내용 반영됨' : '새로고침됨'}`;
       onRefreshed(refreshed);
 
       loadingAttachments = Number(refreshed.comments || 0) > 0;
       reconciledIssueNumber = null;
     } catch (reason) {
       if (background) return;
-      error = reason?.message || '노트를 새로고침하지 못했습니다.';
-      status = hadDirtyChanges ? '새로고침 실패 · 로컬 변경 유지됨' : '새로고침 실패';
+      error = reason?.message || dtrans('노트를 새로고침하지 못했습니다.', 'Could not refresh the note.');
       if (hadDirtyChanges) scheduleRemoteSave();
     } finally {
       if (background) backgroundRefreshing = false;
@@ -427,7 +411,7 @@
 
   async function uploadFiles(fileList) {
     if (uploadBatchActive) {
-      error = '진행 중인 첨부가 끝난 뒤 다시 시도해주세요.';
+      error = dtrans('진행 중인 첨부가 끝난 뒤 다시 시도해주세요.', 'Wait for the current attachment operation to finish.');
       return;
     }
     uploadBatchActive = true;
@@ -436,21 +420,21 @@
     const files = requestedFiles.slice(0, remainingSlots);
     const limitReached = requestedFiles.length > remainingSlots;
     if (!files.length) {
-      if (limitReached) error = `첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지 추가할 수 있습니다.`;
+      if (limitReached) error = dtrans(`첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지 추가할 수 있습니다.`, `Each note can have up to ${MAX_ATTACHMENTS} attachments.`);
       if (fileInput) fileInput.value = '';
       uploadBatchActive = false;
       return;
     }
     const targetIssue = await resolveRemoteIssue();
     if (!targetIssue?.number) {
-      error = '새 노트 번호를 만들지 못해 첨부할 수 없습니다. 본문을 저장한 뒤 다시 시도해주세요.';
+      error = dtrans('새 노트 번호를 만들지 못해 첨부할 수 없습니다. 본문을 저장한 뒤 다시 시도해주세요.', 'Could not allocate a number for the new note. Save the body and try attaching again.');
       uploadBatchActive = false;
       return;
     }
     let uploadedAny = false;
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
-        error = `“${file.name}”은 10MB를 초과하여 올리지 않았습니다.`;
+        error = dtrans(`“${file.name}”은 10MB를 초과하여 올리지 않았습니다.`, `“${file.name}” was not uploaded because it exceeds 10 MB.`);
         continue;
       }
 
@@ -477,8 +461,8 @@
           }
         }
         error = reason?.status === 403
-          ? '첨부하려면 PAT에 Issues와 Contents의 Read and write 권한이 필요합니다.'
-          : reason?.message || '파일 업로드에 실패했습니다.';
+          ? dtrans('첨부하려면 PAT에 Issues와 Contents의 Read and write 권한이 필요합니다.', 'Attachments require Issues and Contents read and write permissions on the PAT.')
+          : reason?.message || dtrans('파일 업로드에 실패했습니다.', 'File upload failed.');
       } finally {
         uploading -= 1;
       }
@@ -490,7 +474,7 @@
     }
     reconciledIssueNumber = null;
     if (limitReached && !error) {
-      error = `첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지만 추가했습니다.`;
+      error = dtrans(`첨부파일은 노트당 최대 ${MAX_ATTACHMENTS}개까지만 추가했습니다.`, `Only ${MAX_ATTACHMENTS} attachments were added because that is the per-note limit.`);
     }
     if (fileInput) fileInput.value = '';
     uploadBatchActive = false;
@@ -626,14 +610,14 @@
       previewUrls = { ...previewUrls, [attachment.path]: url };
       return url;
     } catch (reason) {
-      error = reason?.message || '첨부 파일을 불러오지 못했습니다.';
+      error = reason?.message || dtrans('첨부 파일을 불러오지 못했습니다.', 'Could not load the attachment.');
       return '';
     }
   }
 
   async function removeAttachment(attachment) {
     if (archived || saving || deletingPath) return;
-    if (!confirm(`“${attachment.name}” 파일을 저장소에서도 삭제할까요?`)) return;
+    if (!confirm(dtrans(`“${attachment.name}” 파일을 저장소에서도 삭제할까요?`, `Delete “${attachment.name}” from the repository too?`))) return;
     deletingPath = attachment.path;
     error = '';
     let fileDeleted = false;
@@ -649,7 +633,7 @@
           await deleteAttachmentComment(token, repo, attachment.commentId);
         } catch (reason) {
           if (reason?.status !== 404) {
-            error = '파일은 삭제했지만 첨부 댓글을 지우지 못했습니다. 다음에 노트를 열 때 다시 정리합니다.';
+            error = dtrans('파일은 삭제했지만 첨부 댓글을 지우지 못했습니다. 다음에 노트를 열 때 다시 정리합니다.', 'The file was deleted, but its attachment comment could not be removed. It will be reconciled next time the note opens.');
           }
         }
       }
@@ -662,7 +646,7 @@
       if (viewerIndex === removedIndex) closeViewer();
       else if (viewerIndex > removedIndex) viewerIndex -= 1;
     } catch (reason) {
-      error = reason?.message || '첨부 파일을 삭제하지 못했습니다.';
+      error = reason?.message || dtrans('첨부 파일을 삭제하지 못했습니다.', 'Could not delete the attachment.');
     } finally {
       deletingPath = '';
       if (fileDeleted) reconciledIssueNumber = null;
@@ -723,7 +707,7 @@
       attachments = nextAttachments;
       attachments.filter(isImage).forEach(loadPreview);
     } catch (reason) {
-      if (!destroyed) error = reason?.message || '첨부 파일 상태를 확인하지 못했습니다.';
+      if (!destroyed) error = reason?.message || dtrans('첨부 파일 상태를 확인하지 못했습니다.', 'Could not reconcile attachment state.');
     } finally {
       if (!destroyed && remoteIssue?.number === issueNumber) finishAttachmentLoad();
     }
@@ -772,7 +756,7 @@
   function tagColor(name) {
     return `#${availableLabels.find(
       (label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()
-    )?.color || '4f46e5'}`;
+    )?.color || tagColorForName(name)}`;
   }
 
   function applyLabelMutation(mutation) {
@@ -801,28 +785,28 @@
 <div class="inline-editor">
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
-      <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label="목록으로 돌아가기">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i> 목록
+      <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label={dtrans('목록으로 돌아가기', 'Back to list')}>
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> {dtrans('목록', 'List')}
       </button>
       {#if issue}
         <button
           class="detail-refresh-desktop btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
           disabled={saving || refreshing}
           on:click={() => refreshIssue()}
-          aria-label="현재 노트 새로고침"
-          title="현재 노트 새로고침"
+          aria-label={dtrans('현재 노트 새로고침', 'Refresh current note')}
+          title={dtrans('현재 노트 새로고침', 'Refresh current note')}
         >
           {#if refreshing}
             <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
           {:else}
             <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
           {/if}
-          <span>갱신</span>
+          <span>{dtrans('갱신', 'Refresh')}</span>
         </button>
       {/if}
     </div>
     <div class="detail-toolbar-center">
-      <span>{issue ? `#${issue.number}` : '새 노트'}</span>
+      <span>{issue ? `#${issue.number}` : dtrans('새 노트', 'New note')}</span>
       <span class="save-status" class:is-saving={saving}>
         {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}
         {compactStatus}
@@ -852,7 +836,7 @@
       {#if !archived && !attachments.length}
         <label class="btn btn-sm btn-outline-secondary" for={`inline-attachment-${editorId}`}>
           <i class="bi bi-paperclip" aria-hidden="true"></i>
-          {uploading ? `업로드 중 (${uploading})` : '첨부'}
+          {uploading ? dtrans(`업로드 중 (${uploading})`, `Uploading (${uploading})`) : dtrans('첨부', 'Attach')}
         </label>
       {/if}
       {#if issue}
@@ -862,7 +846,7 @@
           on:click={() => onMove(issue)}
         >
           <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-          {archived ? '복원' : '삭제'}
+          {archived ? dtrans('복원', 'Restore') : dtrans('삭제', 'Delete')}
         </button>
         <a class="btn btn-sm btn-outline-secondary" href={issue.html_url} target="_blank" rel="noreferrer">
           <i class="bi bi-github" aria-hidden="true"></i> GitHub
@@ -876,7 +860,7 @@
         data-bs-toggle="dropdown"
         data-bs-auto-close="outside"
         aria-expanded="false"
-        aria-label="노트 작업 더보기"
+        aria-label={dtrans('노트 작업 더보기', 'More note actions')}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         {#if issue}
@@ -891,7 +875,7 @@
             {:else}
               <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
             {/if}
-            갱신
+            {dtrans('갱신', 'Refresh')}
           </button>
           <div class="dropdown-divider"></div>
         {/if}
@@ -909,7 +893,7 @@
         {#if !archived && !attachments.length}
           <label class="dropdown-item" for={`inline-attachment-${editorId}`}>
             <i class="bi bi-paperclip" aria-hidden="true"></i>
-            {uploading ? `업로드 중 (${uploading})` : '첨부'}
+            {uploading ? dtrans(`업로드 중 (${uploading})`, `Uploading (${uploading})`) : dtrans('첨부', 'Attach')}
           </label>
         {/if}
         {#if issue}
@@ -920,7 +904,7 @@
             on:click={() => onMove(issue)}
           >
             <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-            {archived ? '복원' : '삭제'}
+            {archived ? dtrans('복원', 'Restore') : dtrans('삭제', 'Delete')}
           </button>
           <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> GitHub
@@ -962,7 +946,7 @@
                   class="attachment-delete"
                   disabled={Boolean(deletingPath) || saving}
                   on:click={() => removeAttachment(attachment)}
-                  aria-label={`${attachment.name} 첨부 삭제`}
+                  aria-label={dtrans(`${attachment.name} 첨부 삭제`, `Delete attachment ${attachment.name}`)}
                 >
                   <i
                     class={`bi ${deletingPath === attachment.path ? 'bi-hourglass-split' : 'bi-x-lg'}`}
@@ -988,12 +972,12 @@
               for={`inline-attachment-${editorId}`}
             >
               <strong><i class="bi bi-plus-lg" aria-hidden="true"></i></strong>
-              <span>{uploading ? `업로드 중 (${uploading})` : '추가'}</span>
+              <span>{uploading ? dtrans(`업로드 중 (${uploading})`, `Uploading (${uploading})`) : dtrans('추가', 'Add')}</span>
             </label>
           {/if}
         </div>
         {#if loadingAttachments || uploading || deletingPath}
-          <div class="attachment-api-overlay" aria-label="첨부파일 처리 중">
+          <div class="attachment-api-overlay" aria-label={dtrans('첨부파일 처리 중', 'Processing attachments')}>
             <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
           </div>
         {/if}
@@ -1005,7 +989,7 @@
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
             #{label}
             {#if !archived}
-              <button type="button" on:click={() => removeTag(label)} aria-label={`${label} 태그 제거`}>
+              <button type="button" on:click={() => removeTag(label)} aria-label={dtrans(`${label} 태그 제거`, `Remove tag ${label}`)}>
                 <i class="bi bi-x" aria-hidden="true"></i>
               </button>
             {/if}
@@ -1027,9 +1011,9 @@
         bind:value={title}
         on:input={changed}
         on:keydown={handleEditorKeydown}
-        placeholder="제목"
+        placeholder={dtrans('제목', 'Title')}
         maxlength="256"
-        aria-label="노트 제목"
+        aria-label={dtrans('노트 제목', 'Note title')}
         readonly={archived || saving || refreshing}
       />
     {/if}
@@ -1050,8 +1034,8 @@
       on:dragover={handleDragOver}
       on:dragleave={handleDragLeave}
       on:drop={handleDrop}
-      placeholder={titleMode === 'first-line' ? '첫 줄이 노트 제목이 됩니다…' : '내용을 입력하세요…'}
-      aria-label="노트 본문"
+      placeholder={titleMode === 'first-line' ? dtrans('첫 줄이 노트 제목이 됩니다…', 'The first line becomes the note title…') : dtrans('내용을 입력하세요…', 'Write your note…')}
+      aria-label={dtrans('노트 본문', 'Note body')}
       readonly={archived || saving || refreshing}
     ></textarea>
     {#if activeLink}
@@ -1063,7 +1047,7 @@
         target="_blank"
         rel="noopener noreferrer"
         title={activeLink.url}
-        aria-label={`${activeLink.url} 새 탭에서 열기`}
+        aria-label={dtrans(`${activeLink.url} 새 탭에서 열기`, `Open ${activeLink.url} in a new tab`)}
       >
         <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
         <span>{shortenMiddle(activeLink.url)}</span>
@@ -1078,7 +1062,7 @@
       tabindex="-1"
       role="dialog"
       aria-modal="true"
-      aria-label="첨부 파일 보기"
+      aria-label={dtrans('첨부 파일 보기', 'View attachments')}
       on:click|self={closeViewer}
       on:keydown={handleViewerKeydown}
       on:keyup|stopPropagation
@@ -1088,16 +1072,16 @@
         <span class="viewer-file-name">{viewedAttachment.name}</span>
         {#if previewUrls[viewedAttachment.path]}
           <a href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
-            <i class="bi bi-download" aria-hidden="true"></i> 다운로드
+            <i class="bi bi-download" aria-hidden="true"></i> {dtrans('다운로드', 'Download')}
           </a>
         {/if}
         {#if !archived}
           <button type="button" on:click={() => removeAttachment(viewedAttachment)}>
-            <i class="bi bi-trash3" aria-hidden="true"></i> 삭제
+            <i class="bi bi-trash3" aria-hidden="true"></i> {dtrans('삭제', 'Delete')}
           </button>
         {/if}
-        <button type="button" on:click={closeViewer} aria-label="첨부 보기 닫기">
-          <i class="bi bi-x-lg" aria-hidden="true"></i> 닫기
+        <button type="button" on:click={closeViewer} aria-label={dtrans('첨부 보기 닫기', 'Close attachment viewer')}>
+          <i class="bi bi-x-lg" aria-hidden="true"></i> {dtrans('닫기', 'Close')}
         </button>
       </div>
       <div class="attachment-viewer-stage">
@@ -1105,7 +1089,7 @@
           {#if previewUrls[viewedAttachment.path]}
             <img src={previewUrls[viewedAttachment.path]} alt={viewedAttachment.name} />
           {:else}
-            <span class="spinner-border" aria-label="첨부 파일 불러오는 중"></span>
+            <span class="spinner-border" aria-label={dtrans('첨부 파일 불러오는 중', 'Loading attachment')}></span>
           {/if}
         {:else}
           <div class="attachment-file-view">
@@ -1113,19 +1097,19 @@
             <span>{formatFileSize(viewedAttachment.size)}</span>
             {#if previewUrls[viewedAttachment.path]}
               <a class="btn btn-light" href={previewUrls[viewedAttachment.path]} download={viewedAttachment.name}>
-                <i class="bi bi-download" aria-hidden="true"></i> 파일 다운로드
+                <i class="bi bi-download" aria-hidden="true"></i> {dtrans('파일 다운로드', 'Download file')}
               </a>
             {:else}
-              <span>파일을 불러오는 중…</span>
+              <span>{dtrans('파일을 불러오는 중…', 'Loading file…')}</span>
             {/if}
           </div>
         {/if}
       </div>
       {#if attachments.length > 1}
-        <button type="button" class="viewer-nav viewer-prev" on:click={() => moveViewer(-1)} aria-label="이전 첨부">
+        <button type="button" class="viewer-nav viewer-prev" on:click={() => moveViewer(-1)} aria-label={dtrans('이전 첨부', 'Previous attachment')}>
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </button>
-        <button type="button" class="viewer-nav viewer-next" on:click={() => moveViewer(1)} aria-label="다음 첨부">
+        <button type="button" class="viewer-nav viewer-next" on:click={() => moveViewer(1)} aria-label={dtrans('다음 첨부', 'Next attachment')}>
           <i class="bi bi-chevron-right" aria-hidden="true"></i>
         </button>
       {/if}
