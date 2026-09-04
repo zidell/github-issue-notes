@@ -847,19 +847,19 @@
         {compactStatus}
       </span>
     </div>
-    {#if !archived && !attachments.length}
+    {#if !archived}
       <input
         bind:this={fileInput}
         class="visually-hidden"
         type="file"
         id={`inline-attachment-${editorId}`}
         multiple
-        disabled={uploadBatchActive}
+        disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
         on:change={(event) => uploadFiles(event.currentTarget.files)}
       />
     {/if}
     <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
-      {#if !archived && !labels.length}
+      {#if !archived}
         <TagPicker
           toolbar
           {availableLabels}
@@ -867,8 +867,12 @@
           onSelect={addTag}
         />
       {/if}
-      {#if !archived && !attachments.length}
-        <label class="btn btn-sm btn-outline-secondary" for={`inline-attachment-${editorId}`}>
+      {#if !archived}
+        <label
+          class="btn btn-sm btn-outline-secondary"
+          class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+          for={`inline-attachment-${editorId}`}
+        >
           <i class="bi bi-paperclip" aria-hidden="true"></i>
           {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
         </label>
@@ -885,7 +889,7 @@
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         <div class="detail-toolbar-mobile-actions">
-          {#if !archived && !labels.length}
+          {#if !archived}
             <div class="detail-toolbar-more-tag">
               <TagPicker
                 toolbar
@@ -895,8 +899,12 @@
               />
             </div>
           {/if}
-          {#if !archived && !attachments.length}
-            <label class="dropdown-item" for={`inline-attachment-${editorId}`}>
+          {#if !archived}
+            <label
+              class="dropdown-item"
+              class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+              for={`inline-attachment-${editorId}`}
+            >
               <i class="bi bi-paperclip" aria-hidden="true"></i>
               {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
             </label>
@@ -978,15 +986,6 @@
             </div>
           {/each}
           {#if !archived && attachments.length < MAX_ATTACHMENTS}
-            <input
-              bind:this={fileInput}
-              class="visually-hidden"
-              type="file"
-              id={`inline-attachment-${editorId}`}
-              multiple
-              disabled={uploadBatchActive}
-              on:change={(event) => uploadFiles(event.currentTarget.files)}
-            />
             <label
               class="attachment-add-tile"
               class:disabled={uploadBatchActive}
