@@ -4,3 +4,11 @@ src-tauri/target
 src-tauri/gen
 .DS_Store
 *.local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.tauri-signing-private-key
