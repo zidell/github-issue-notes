@@ -61,6 +61,7 @@
   let lastSidebarScrollTop = 0;
   let issueRefreshSequence = 0;
   let issueRefreshRequests = {};
+  let tokenInput;
 
   $: emptyMessage = query
     ? dtrans('검색 결과가 없습니다.', 'No results found.')
@@ -236,7 +237,7 @@
 
   async function connect(showSuccess = true, restoring = false) {
     const fromSettings = routeStack.at(-1)?.screen === 'settings' && Boolean(settingsSnapshot);
-    const requestedToken = normalizeToken(token);
+    const requestedToken = normalizeToken(tokenInput?.value || token);
     const requestedRepo = repo;
     error = '';
     notice = '';
@@ -880,6 +881,7 @@
             <div class="mb-3">
               <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
               <input
+                bind:this={tokenInput}
                 id="token"
                 type="text"
                 class="form-control form-control-lg font-monospace"
