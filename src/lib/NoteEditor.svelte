@@ -873,15 +873,6 @@
           {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
         </label>
       {/if}
-      {#if issue}
-        <button
-          class="btn btn-sm btn-outline-secondary"
-          on:click={() => onMove(issue)}
-        >
-          <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-          {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
-        </button>
-      {/if}
     </div>
     <div class:has-issue={Boolean(issue)} class="dropdown detail-toolbar-more">
       <button
@@ -894,12 +885,6 @@
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         <div class="detail-toolbar-mobile-actions">
-          {#if issue}
-            <div class="dropdown-header detail-toolbar-timestamps">
-              <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(issue.created_at) } })}</span>
-              <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(issue.updated_at) } })}</span>
-            </div>
-          {/if}
           {#if !archived && !labels.length}
             <div class="detail-toolbar-more-tag">
               <TagPicker
@@ -929,9 +914,22 @@
         </div>
         {#if issue}
           <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
+          <button
+            type="button"
+            class="dropdown-item detail-toolbar-desktop-delete"
+            on:click={() => onMove(issue)}
+          >
+            <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
+            {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+          </button>
           <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
           </a>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-header detail-toolbar-timestamps">
+            <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(issue.created_at) } })}</span>
+            <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(issue.updated_at) } })}</span>
+          </div>
         {/if}
       </div>
     </div>
