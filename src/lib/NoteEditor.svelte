@@ -23,6 +23,8 @@
   export let repo;
   export let editorId = 'note';
   export let issue = null;
+  export let initialDraft = null;
+  export let externalPasteRequest = null;
   export let refreshRequest = 0;
   export let allocatedIssue = null;
   export let allocationPromise = null;
@@ -38,6 +40,7 @@
   export let onSaved = () => {};
   export let onCreated = () => {};
   export let onDraftChange = () => {};
+  export let onExternalPasteHandled = () => {};
   export let onRefreshed = () => {};
   export let onRefreshStateChange = () => {};
   export let onLabelsAvailable = () => {};
@@ -48,11 +51,11 @@
   const MAX_ATTACHMENTS = 30;
   const draftId = issue ? `issue.${issue.number}` : 'new';
 
-  let title = issue?.title || '';
-  let body = issue?.body || '';
+  let title = issue?.title || initialDraft?.title || '';
+  let body = issue?.body || initialDraft?.body || '';
   let attachments = [];
   let remoteIssue = issue || allocatedIssue;
-  let labels = (issue?.labels || []).map((label) => label.name);
+  let labels = (issue?.labels || initialDraft?.labels || []).map((label) => label.name);
   let dirty = false;
   let saving = false;
   let refreshing = false;
@@ -87,6 +90,7 @@
   let linkTooltipStyle = '';
   let mounted = false;
   let handledRefreshRequest = 0;
+  let handledExternalPasteRequest = 0;
 
   $: fontStack = {
     system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, sans-serif',
@@ -117,6 +121,9 @@
   $: if (mounted && !paused && refreshRequest > handledRefreshRequest) {
     handleBackgroundRefreshRequest();
   }
+  $: if (mounted && !paused && externalPasteRequest?.id > handledExternalPasteRequest) {
+    handleExternalPasteRequest();
+  }
 
   onMount(() => {
     const recovered = archived ? null : readDraft();
@@ -127,6 +134,8 @@
       dirty = true;
       notifyDraftChange();
       scheduleRemoteSave();
+    } else if (initialDraft?.body) {
+      changed();
     }
 
     mounted = true;
@@ -365,6 +374,14 @@
     else onRefreshStateChange(false);
   }
 
+  function handleExternalPasteRequest() {
+    const request = externalPasteRequest;
+    if (!request?.id || request.id <= handledExternalPasteRequest) return;
+    handledExternalPasteRequest = request.id;
+    onExternalPasteHandled(request.id);
+    uploadFiles(request.files);
+  }
+
   async function refreshIssue(background = false) {
     const targetIssue = issue || remoteIssue;
     if (!targetIssue?.number || saving || refreshing || backgroundRefreshing) {
@@ -434,6 +451,7 @@
   }
 
   async function uploadFiles(fileList) {
+    if (archived) return;
     if (uploadBatchActive) {
       error = $_("m.12c0dff05d");
       return;

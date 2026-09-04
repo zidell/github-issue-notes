@@ -35,6 +35,8 @@
   let selectedIssue = null;
   let pendingNote = null;
   let pendingAllocation = null;
+  let externalPasteRequest = null;
+  let pasteRequestSequence = 0;
   let state = 'open';
   let query = '';
   let activeLabel = '';
@@ -96,6 +98,7 @@
   onMount(() => {
     router.init();
     window.addEventListener('keydown', handleGlobalKeydown);
+    window.addEventListener('paste', handleGlobalPaste);
     const unsubscribe = router.subscribe((stack) => {
       const targetSignature = stack.map((route) => route.segment).join('/');
       if (targetSignature === pendingRouteTransition) return;
@@ -176,6 +179,7 @@
     return () => {
       clearInterval(backgroundRefreshTimer);
       window.removeEventListener('keydown', handleGlobalKeydown);
+      window.removeEventListener('paste', handleGlobalPaste);
       unsubscribe();
       router.destroy();
     };
@@ -437,7 +441,8 @@
     lastSidebarScrollTop = nextScrollTop;
   }
 
-  function newNote() {
+  function newNote(initialBody = '') {
+    const pastedBody = typeof initialBody === 'string' ? initialBody : '';
     error = '';
     const stateChanged = state !== 'open';
     const hadQuery = Boolean(query.trim());
@@ -448,7 +453,7 @@
         id: 'local-new-note',
         number: null,
         title: $_("m.2b7b05c002"),
-        body: '',
+        body: pastedBody,
         labels: activeLabel ? [{ name: activeLabel }] : [],
         updated_at: new Date().toISOString(),
         local: true,
@@ -474,6 +479,42 @@
     ) return;
     event.preventDefault();
     newNote();
+  }
+
+  function handleGlobalPaste(event) {
+    if (appState !== 'ready' || topRoute?.screen === 'settings' || isEditableElement(event.target)) return;
+
+    const files = Array.from(event.clipboardData?.files || []);
+    const text = event.clipboardData?.getData('text/plain') || '';
+    if (!files.length && !text) return;
+
+    event.preventDefault();
+    if (contentRoute) {
+      if (files.length && state === 'open') {
+        notice = '';
+        queueExternalPaste(files);
+      }
+      else if (text) notice = $_('dynamic.pasteLocationRequired');
+      return;
+    }
+
+    notice = '';
+    newNote(text);
+    if (files.length) queueExternalPaste(files);
+  }
+
+  function isEditableElement(element) {
+    return element instanceof HTMLTextAreaElement
+      || element instanceof HTMLInputElement
+      || Boolean(element?.isContentEditable);
+  }
+
+  function queueExternalPaste(files) {
+    externalPasteRequest = { id: ++pasteRequestSequence, files };
+  }
+
+  function externalPasteHandled(id) {
+    if (externalPasteRequest?.id === id) externalPasteRequest = null;
   }
 
   async function allocatePendingIssue(localNote) {
@@ -1366,6 +1407,8 @@
               {token}
               {repo}
               issue={routeIssue}
+              initialDraft={route.screen === 'new' ? pendingNote : null}
+              externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
               allocatedIssue={route.screen === 'new' ? pendingNote?.allocatedIssue : null}
               allocationPromise={route.screen === 'new' ? pendingAllocation : null}
@@ -1384,6 +1427,7 @@
               onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
               onCreated={noteCreated}
               onDraftChange={(draft) => noteDraftChanged(routeIssue, draft)}
+              onExternalPasteHandled={externalPasteHandled}
               onLabelsAvailable={mergeRepositoryLabels}
               onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
               onBack={() => router.pop()}
