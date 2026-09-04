@@ -111,6 +111,7 @@
         : issue
           ? $_("m.c0ae8f6ea8")
           : $_("m.2b7b05c002");
+  $: showSaveStatus = archived || saveFailed || saving || dirty || !issue;
   $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
     remoteIssue = allocatedIssue;
   }
@@ -887,10 +888,12 @@
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
-      <span class="save-status" aria-live="polite">
-        <BrailleSpinner active={saving} />
-        {compactStatus}
-      </span>
+      {#if showSaveStatus}
+        <span class="save-status" aria-live="polite">
+          <BrailleSpinner active={saving} />
+          {compactStatus}
+        </span>
+      {/if}
     </div>
     {#if !archived}
       <input
