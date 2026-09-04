@@ -7,7 +7,6 @@
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { firstLinePreview, markdownToPlainText } from './lib/notes.js';
-  import { isNewNoteShortcut } from './lib/shortcuts.js';
   import {
     createIssue,
     createLabel,
@@ -467,7 +466,11 @@
     if (
       appState !== 'ready'
       || topRoute?.screen === 'settings'
-      || !isNewNoteShortcut(event)
+      || event.repeat
+      || event.altKey
+      || event.shiftKey
+      || (!event.ctrlKey && !event.metaKey)
+      || event.key.toLocaleLowerCase() !== 'n'
     ) return;
     event.preventDefault();
     newNote();
