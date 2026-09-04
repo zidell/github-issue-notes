@@ -178,7 +178,7 @@ button, input, textarea { font: inherit; }
   .note-sidebar, .note-detail { position: absolute; inset: 0; width: 100%; transition: transform 180ms ease; }
   .note-sidebar { border-right: 0; transform: translateX(0); }
   .note-detail { z-index: 2; transform: translateX(100%); }
-  .mobile-detail-active .note-sidebar { transform: translateX(-25%); }
+  .mobile-detail-active .note-sidebar { transform: translateX(0); }
   .mobile-detail-active .note-detail { transform: translateX(0); }
   .detail-toolbar-start .mobile-back { display: inline-flex; align-items: center; gap: .3rem; }
   .detail-toolbar { height: 64px; gap: .45rem; padding-inline: .55rem; }
@@ -197,38 +197,30 @@ button, input, textarea { font: inherit; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
 
   html[data-note-transition] { view-transition-name: none; }
-  html[data-note-transition] .app-shell { view-transition-name: note-stack; }
-  html[data-note-transition] .note-sidebar,
-  html[data-note-transition] .note-detail { transition: none; }
+  html[data-note-transition] .note-detail { transition: none; view-transition-name: note-detail; }
 
-  html[data-note-transition="forward"]::view-transition-old(note-stack) {
-    animation: note-stack-out-left 240ms ease-out both;
+  html[data-note-transition="forward"]::view-transition-old(note-detail) {
+    animation: none;
+    opacity: 0;
   }
-  html[data-note-transition="forward"]::view-transition-new(note-stack) {
-    animation: note-stack-in-right 240ms ease-out both;
+  html[data-note-transition="forward"]::view-transition-new(note-detail) {
+    animation: note-detail-in-right 240ms ease-out both;
   }
-  html[data-note-transition="backward"]::view-transition-old(note-stack) {
-    animation: note-stack-out-right 240ms ease-out both;
+  html[data-note-transition="backward"]::view-transition-old(note-detail) {
+    animation: note-detail-out-right 240ms ease-out both;
   }
-  html[data-note-transition="backward"]::view-transition-new(note-stack) {
-    animation: note-stack-in-left 240ms ease-out both;
+  html[data-note-transition="backward"]::view-transition-new(note-detail) {
+    animation: none;
+    opacity: 0;
   }
 }
 
-@keyframes note-stack-out-left {
-  to { opacity: .72; transform: translateX(-24%); }
-}
-
-@keyframes note-stack-in-right {
+@keyframes note-detail-in-right {
   from { transform: translateX(100%); }
 }
 
-@keyframes note-stack-out-right {
+@keyframes note-detail-out-right {
   to { transform: translateX(100%); }
-}
-
-@keyframes note-stack-in-left {
-  from { opacity: .72; transform: translateX(-24%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
