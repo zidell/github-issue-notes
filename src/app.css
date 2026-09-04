@@ -119,6 +119,7 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-more.has-issue { display: block; }
 .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider, .detail-toolbar-desktop-delete { display: none; }
 .detail-toolbar-timestamps { display: grid; gap: .2rem; padding: .45rem 1rem .55rem; color: #8c8c8c; font-size: .75rem; line-height: 1.35; white-space: nowrap; }
+.detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
 .inline-editor { position: relative; height: 100%; display: flex; flex-direction: column; }
 .save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; }
@@ -206,7 +207,7 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: block; }
   .detail-toolbar-more > .btn { min-width: 32px; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .6rem; min-width: 10rem; padding-block: .35rem; text-align: left; }
-  .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; cursor: pointer; font-size: 1rem; }
+  .detail-toolbar-more .dropdown-item { cursor: pointer; font-size: 1rem; }
   .detail-toolbar-more .dropdown-item i, .detail-toolbar-more .dropdown-item .spinner-border { width: 1rem; flex: none; text-align: center; }
   .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: 1rem; text-align: left; }
   .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
