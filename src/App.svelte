@@ -966,7 +966,7 @@
 
 {#if appState === 'booting' || appState === 'restoring'}
   <main class="boot-screen">
-    <span class="brand-mark brand-mark-sm">IN</span>
+    <img class="brand-mark brand-mark-sm" src="./icon.svg" alt="" />
     <span class="text-secondary small">
       {appState === 'restoring' ? $_("m.dc21c1787a") : $_("m.e5f58095ac")}
     </span>
