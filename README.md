@@ -4,7 +4,10 @@
 노트 앱처럼 사용할 수 있도록 인터페이스만 제공하며, 자체 데이터베이스는
 사용하지 않습니다.
 
-**데모 및 실사용 주소:** [note.gitools.net](https://note.gitools.net)
+**서비스 주소(누구나 바로 사용 가능):** [note.gitools.net](https://note.gitools.net)
+
+기능 요청사항이 있는 경우 포크해서 직접 변경하세요. 제가 쓰기에는 이미 충분해서
+별도의 기능 제안은 받지 않습니다.
 
 ## 화면
 
@@ -116,17 +119,12 @@ npm run tauri:dev
 npm run tauri:build
 ```
 
-GitHub Releases 바이너리는 일반 `main` 푸시가 아니라 `v*` 버전 태그를 푸시할
-때 빌드됩니다. 루트 `package.json`의 버전이 데스크톱 앱에도 자동으로 사용되며,
-태그와 버전이 다르면 워크플로가 중단됩니다.
-
-```bash
-npm version patch --no-git-tag-version
-git add package.json package-lock.json
-git commit -m "chore: release v0.1.1"
-git tag v0.1.1
-git push origin main v0.1.1
-```
+`main`에 푸시할 때마다 GitHub Releases 바이너리를 자동으로 빌드합니다. 버전은
+GitHub Actions 실행 번호를 패치 버전에 넣은 `0.1.<run_number>` 형식이며, 워크플로
+안에서 루트 `package.json`에 주입되므로 데스크톱 번들에도 같은 버전이 기록됩니다.
+자동 버전 변경은 빌드 러너 안에서만 이루어져 다시 커밋되거나 연쇄 빌드를 만들지
+않습니다. 필요하면 Actions 화면에서 Desktop release 워크플로를 수동 실행할 수도
+있습니다.
 
 릴리스 워크플로는 macOS universal, Windows, Linux 설치 파일을 만들어 GitHub의
 Releases 탭에 게시합니다. 현재 macOS 빌드는 ad-hoc 서명만 적용되며 공증되지
@@ -255,6 +253,11 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 목록 행 전체가 노트 열기 클릭 영역이며, 행 안의 태그 버튼만 태그 필터 동작을
 우선합니다.
 
+모바일 목록과 본문 사이는 브라우저의 same-document View Transitions API를 사용할
+수 있을 때 `ease-out` 슬라이드로 전환합니다. 라우터 스택을 구독해 방향을 정하므로
+본문 진입뿐 아니라 브라우저 뒤로가기와 `Esc`에도 역방향 전환이 적용됩니다. API를
+지원하지 않는 환경에서는 기존 라우팅 동작을 유지합니다.
+
 ### 로컬 저장과 원격 저장
 
 - 연결 설정과 선택 사항: `localStorage`의 `issue-note.settings.v1`
@@ -270,11 +273,11 @@ UI 번역은 `svelte-i18n`, `src/lib/i18n.js`, `src/lib/locales/`의 메시지 �
 초안 복구를 수정한다면 이 동작을 회귀 테스트하거나 직접 확인하세요. 저장이
 완료된 초안만 로컬 저장소에서 제거합니다.
 
-Safari의 password 자동완성이 화면에 채운 값과 Svelte 상태를 다르게 유지하는
-경우가 있어 PAT 입력은 일반 text 필드이며 제출 시 실제 DOM 값을 다시 읽습니다.
-자동수정·자동 대문자화는 비활성화하고 붙여넣기에 섞인 zero-width 문자는
-제거합니다. PAT는 화면에 보이므로 주변에 노출되지 않게 주의해야 합니다. 연결
-확인은 `/user`로 토큰 자체를 먼저 확인한 뒤 저장소를 확인합니다. Private 저장소
+PAT 입력은 password 필드로 표시합니다. 설정 화면을 다시 열 때 저장된 값은 입력란에
+채우지 않으며, 새 PAT를 입력한 경우에만 기존 값을 교체합니다. 빈 상태로 설정을
+저장하면 기존 PAT를 유지합니다. 자동수정·자동 대문자화는 비활성화하고 붙여넣기에
+섞인 zero-width 문자는 제거합니다. 연결 확인은 `/user`로 토큰 자체를 먼저 확인한
+뒤 저장소를 확인합니다. Private 저장소
 권한이 없을 때 GitHub가 403 대신 404를 반환할 수 있으므로 404를 Safari나 CORS
 오류로 단정하지 마세요.
 

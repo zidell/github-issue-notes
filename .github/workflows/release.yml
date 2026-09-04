@@ -2,14 +2,16 @@ name: Desktop release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
+    env:
+      RELEASE_VERSION: 0.1.${{ github.run_number }}
     strategy:
       fail-fast: false
       matrix:
@@ -52,24 +54,21 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Set automatic release version
+        run: npm version "${{ env.RELEASE_VERSION }}" --no-git-tag-version --allow-same-version
+
       - name: Check and test frontend
         run: |
           npm run check
           npm test
-
-      - name: Check release version
-        shell: bash
-        run: |
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-          test "${GITHUB_REF_NAME}" = "v${PACKAGE_VERSION}"
 
       - name: Build and publish desktop bundles
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Issue Note ${{ github.ref_name }}
+          tagName: v${{ env.RELEASE_VERSION }}
+          releaseName: Issue Note v${{ env.RELEASE_VERSION }}
           releaseBody: Download the installer for your platform. These builds are not notarized or code-signed.
           releaseDraft: false
           prerelease: false
