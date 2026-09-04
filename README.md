@@ -131,7 +131,8 @@ GitHub Actions 실행 번호를 패치 버전에 넣은 `0.1.<run_number>` 형�
 안에서 루트 `package.json`에 주입되므로 데스크톱 번들에도 같은 버전이 기록됩니다.
 자동 버전 변경은 빌드 러너 안에서만 이루어져 다시 커밋되거나 연쇄 빌드를 만들지
 않습니다. 필요하면 Actions 화면에서 Desktop release 워크플로를 수동 실행할 수도
-있습니다.
+있습니다. 빌드가 모두 끝나면 최신 릴리스 20개만 남기고, 그보다 오래된 릴리스와
+연결된 버전 태그는 자동으로 삭제합니다.
 
 릴리스 워크플로는 macOS universal, Windows, Linux 설치 파일을 만들어 GitHub의
 Releases 탭에 게시합니다. 현재 macOS 빌드는 ad-hoc 서명만 적용되며 공증되지

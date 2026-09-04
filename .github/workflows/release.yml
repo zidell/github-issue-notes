@@ -73,3 +73,19 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+  prune-releases:
+    name: Keep the latest 20 releases
+    needs: release
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Delete older releases and tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release list --repo "$GH_REPO" --limit 100 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[20:] | .[].tagName' |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && gh release delete "$tag" --repo "$GH_REPO" --cleanup-tag --yes
+          done
