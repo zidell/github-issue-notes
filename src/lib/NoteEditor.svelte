@@ -874,10 +874,12 @@
     changed();
   }
 
-  function returnToList() {
+  async function returnToList() {
     // 태그 검색 input이 포커스를 잡고 있으면 모바일 키보드와 absolute 메뉴가
     // 목록 전환 뒤에도 레이아웃에 영향을 줄 수 있어 먼저 닫고 blur 처리한다.
+    // 라우터의 View Transition 스냅샷보다 앞서 DOM에서도 메뉴를 제거한다.
     mobileTagPicker?.close();
+    await tick();
     onBack();
   }
 
