@@ -812,8 +812,6 @@
       <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label={$_("m.747f5bd6a0")}>
         <i class="bi bi-arrow-left" aria-hidden="true"></i> {$_("m.a1fffaaafb")}
       </button>
-    </div>
-    <div class="detail-toolbar-center">
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
       <span class="save-status" class:is-saving={saving}>
         {#if saving}<span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>{/if}

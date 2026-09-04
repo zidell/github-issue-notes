@@ -111,8 +111,8 @@ button, input, textarea { font: inherit; }
 .note-detail-layer { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 .note-detail-layer.active { visibility: visible; pointer-events: auto; }
 .detail-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .4375rem .85rem; border-bottom: 1px solid #363636; color: #888; font-size: .8rem; background: #1d1d1d; }
-.detail-toolbar-start, .detail-toolbar-center, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
-.detail-toolbar-center { justify-content: center; white-space: nowrap; }
+.detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
+.detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
 .detail-toolbar-more { display: none; }
@@ -188,8 +188,8 @@ button, input, textarea { font: inherit; }
   .sidebar-profile { width: 2.375rem; height: 2.375rem; }
   .responsive-toolbar-button { --bs-btn-padding-y: .375rem; --bs-btn-padding-x: .75rem; --bs-btn-font-size: 1rem; }
   .detail-toolbar-start { flex: 1; }
-  .detail-toolbar-center { overflow: hidden; }
-  .detail-toolbar-center .save-status { overflow: hidden; text-overflow: ellipsis; }
+  .detail-toolbar-start { overflow: hidden; }
+  .detail-toolbar-start .save-status { overflow: hidden; text-overflow: ellipsis; }
   .detail-toolbar-actions-desktop { display: none !important; }
   .detail-toolbar-more { display: block; flex: 1; text-align: right; }
   .detail-toolbar-more > .btn { min-width: 32px; }
