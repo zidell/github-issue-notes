@@ -593,10 +593,7 @@
   function selectNote(issue) {
     if (!issue.local) {
       refreshingIssueNumber = issue.number;
-      issueRefreshRequests = {
-        ...issueRefreshRequests,
-        [issue.number]: ++issueRefreshSequence
-      };
+      issueRefreshRequests = { [issue.number]: ++issueRefreshSequence };
     }
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
   }

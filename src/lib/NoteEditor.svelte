@@ -162,6 +162,7 @@
   });
 
   onDestroy(() => {
+    destroyed = true;
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
@@ -169,8 +170,8 @@
     window.removeEventListener('pagehide', handlePageExit);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     if (dirty) saveRemote(false, true);
-    destroyed = true;
     Object.values(previewUrls).forEach((url) => URL.revokeObjectURL(url));
+    previewUrls = {};
   });
 
   function draftStore() {
@@ -492,8 +493,10 @@
           targetIssue.number,
           storedFile
         );
-        attachments = [...attachments, attachment];
-        previewUrls = { ...previewUrls, [attachment.path]: URL.createObjectURL(file) };
+        if (!destroyed) {
+          replaceAttachments([...attachments, attachment]);
+          retainPreviewUrl(attachment.path, URL.createObjectURL(file));
+        }
         uploadedAny = true;
       } catch (reason) {
         if (storedFile) {
@@ -646,13 +649,47 @@
       || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
   }
 
+  function isCurrentAttachment(path) {
+    return !destroyed && attachments.some((attachment) => attachment.path === path);
+  }
+
+  function retainPreviewUrl(path, url) {
+    const existingUrl = previewUrls[path];
+    if (existingUrl) {
+      URL.revokeObjectURL(url);
+      return existingUrl;
+    }
+    if (!isCurrentAttachment(path)) {
+      URL.revokeObjectURL(url);
+      return '';
+    }
+    previewUrls = { ...previewUrls, [path]: url };
+    return url;
+  }
+
+  function replaceAttachments(nextAttachments) {
+    attachments = nextAttachments;
+    const currentPaths = new Set(nextAttachments.map((attachment) => attachment.path));
+    const nextPreviewUrls = {};
+    let removedPreview = false;
+
+    for (const [path, url] of Object.entries(previewUrls)) {
+      if (currentPaths.has(path)) nextPreviewUrls[path] = url;
+      else {
+        URL.revokeObjectURL(url);
+        removedPreview = true;
+      }
+    }
+
+    if (removedPreview) previewUrls = nextPreviewUrls;
+  }
+
   async function loadPreview(attachment) {
     if (!attachment || previewUrls[attachment.path]) return previewUrls[attachment.path];
     try {
       const blob = await downloadAttachment(token, repo, attachment);
-      const url = URL.createObjectURL(blob);
-      previewUrls = { ...previewUrls, [attachment.path]: url };
-      return url;
+      if (!isCurrentAttachment(attachment.path)) return '';
+      return retainPreviewUrl(attachment.path, URL.createObjectURL(blob));
     } catch (reason) {
       error = reason?.message || $_("m.4a71ec7a03");
       return '';
@@ -686,7 +723,7 @@
       delete nextPreviewUrls[attachment.path];
       previewUrls = nextPreviewUrls;
       const removedIndex = attachments.findIndex((item) => item.path === attachment.path);
-      attachments = attachments.filter((item) => item.path !== attachment.path);
+      replaceAttachments(attachments.filter((item) => item.path !== attachment.path));
       if (viewerIndex === removedIndex) closeViewer();
       else if (viewerIndex > removedIndex) viewerIndex -= 1;
     } catch (reason) {
@@ -748,7 +785,7 @@
       }
 
       if (destroyed || remoteIssue?.number !== issueNumber) return;
-      attachments = nextAttachments;
+      replaceAttachments(nextAttachments);
       attachments.filter(isImage).forEach(loadPreview);
     } catch (reason) {
       if (!destroyed) error = reason?.message || $_("m.ab5becbd3a");
