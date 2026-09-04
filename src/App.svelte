@@ -79,6 +79,7 @@
   let refreshingIssueNumber = null;
   let pendingRouteTransition = null;
   let tokenInput;
+  let hasConfirmedPatStorage = false;
 
   $: emptyMessage = query
     ? $_("m.e9cc6d0e9a")
@@ -160,7 +161,9 @@
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       repo = saved.repo || '';
       token = saved.token || '';
-      rememberToken = Boolean(saved.token);
+      // PAT가 아직 없는 첫 실행에도 기본값은 저장으로 둔다. 실제 저장 여부는
+      // 연결 직전에 개인용 디바이스인지 한 번 더 확인한다.
+      rememberToken = true;
       titleMode = saved.preferences?.titleMode || 'first-line';
       editorFont = saved.preferences?.editorFont || 'system';
       editorFontSize = Number(saved.preferences?.editorFontSize) || 16;
@@ -343,6 +346,11 @@
 
   async function connect(showSuccess = true, restoring = false) {
     const fromSettings = routeStack.at(-1)?.screen === 'settings' && Boolean(settingsSnapshot);
+    const isFirstConnection = !restoring && !fromSettings && appState === 'setup';
+    if (isFirstConnection && rememberToken && !hasConfirmedPatStorage) {
+      if (!confirm($_('setup.confirmPatStorage'))) return;
+      hasConfirmedPatStorage = true;
+    }
     const replacementToken = normalizeToken(tokenInput?.value || tokenInputValue);
     const requestedToken = replacementToken || (fromSettings ? settingsSnapshot.token : token);
     const requestedRepo = repo;

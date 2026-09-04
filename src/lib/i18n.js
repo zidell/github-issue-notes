@@ -66,12 +66,20 @@ const settings = {
   fr: { language: 'Langue', patReplacementPlaceholder: 'Saisir uniquement pour remplacer le PAT enregistré' },
   it: { language: 'Lingua', patReplacementPlaceholder: 'Inserisci solo per sostituire il PAT salvato' }
 };
+const setup = {
+  en: {
+    confirmPatStorage: 'Save this PAT in this browser?\n\nIf you save it, the app can reconnect without asking for the PAT every time. Anyone who can use this browser profile may be able to use the PAT, so never enable this option on a shared or public device.\n\nIs this your personal device, and do you want to continue? Select Cancel to leave everything unchanged. You can then clear the checkbox and connect without saving the PAT.'
+  },
+  ko: {
+    confirmPatStorage: '이 브라우저에 PAT를 저장할까요?\n\n저장하면 다음부터 PAT를 다시 입력하지 않아도 바로 연결할 수 있습니다. 다만 이 브라우저 프로필에 접근할 수 있는 사람은 PAT를 사용할 수 있으므로, 공용 또는 공유 디바이스에서는 절대로 이 옵션을 켜면 안 됩니다.\n\n이 디바이스는 개인용이며 계속 진행할까요? 취소를 누르면 아무것도 변경하거나 연결하지 않습니다. 체크를 해제한 뒤 PAT를 저장하지 않고 연결할 수 있습니다.'
+  }
+};
 
-addMessages('en', { ...en, dynamic: dynamic.en, errors: errors.en, meta: meta.en, settings: settings.en });
-addMessages('ko', { ...ko, dynamic: dynamic.ko, errors: errors.ko, meta: meta.ko, settings: settings.ko });
-addMessages('zh-CN', { ...zh, dynamic: dynamicFor('zh-CN'), errors: errors.en, meta: meta.en, settings: settings['zh-CN'] });
+addMessages('en', { ...en, dynamic: dynamic.en, errors: errors.en, meta: meta.en, settings: settings.en, setup: setup.en });
+addMessages('ko', { ...ko, dynamic: dynamic.ko, errors: errors.ko, meta: meta.ko, settings: settings.ko, setup: setup.ko });
+addMessages('zh-CN', { ...zh, dynamic: dynamicFor('zh-CN'), errors: errors.en, meta: meta.en, settings: settings['zh-CN'], setup: setup.en });
 for (const code of ['ja', 'de', 'fr', 'it']) {
-  addMessages(code, { ...catalogWithOverrides(common[code]), dynamic: dynamicFor(code), errors: errors.en, meta: meta.en, settings: settings[code] });
+  addMessages(code, { ...catalogWithOverrides(common[code]), dynamic: dynamicFor(code), errors: errors.en, meta: meta.en, settings: settings[code], setup: setup.en });
 }
 
 export function normalizeLocale(value) {
