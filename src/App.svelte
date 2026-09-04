@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
+  import BrailleSpinner from './lib/BrailleSpinner.svelte';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import { tagColorForName } from './lib/colors.js';
@@ -1411,7 +1412,7 @@
                 {/if}
                 {#if refreshingIssueNumber === issue.number}
                   <span class="note-row-refresh-spinner" aria-label={$_("m.6e6e21803f")}>
-                    <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+                    <BrailleSpinner active />
                   </span>
                 {/if}
               </article>

@@ -99,7 +99,7 @@ button, input, textarea { font: inherit; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
 .note-row-labels button { padding: .08rem .12rem; border: 0; color: var(--tag-color); background: transparent; font-size: .68rem; pointer-events: auto; }
 .note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 72%, white); text-decoration: underline; }
-.note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .7rem; width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: 50%; color: #b8c9ef; background: rgba(20, 26, 38, .72); opacity: .72; pointer-events: none; transform: translateY(-50%); }
+.note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .85rem; color: #aaa; opacity: .8; pointer-events: none; transform: translateY(-50%); }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
 .list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
