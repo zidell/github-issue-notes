@@ -114,10 +114,11 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-start, .detail-toolbar-actions { min-width: 0; display: flex; align-items: center; gap: .5rem; }
 .detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
-.detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
+.detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 42px; }
 .detail-toolbar-actions-mobile { display: none; }
 .detail-toolbar-more { display: none; }
 .detail-toolbar-more.has-issue { display: block; }
+.detail-toolbar-more > .btn { min-width: 42px; }
 .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
 .detail-toolbar-more .dropdown-item.detail-toolbar-desktop-delete { display: none; }
 .detail-toolbar-timestamps { display: grid; gap: .2rem; padding: .45rem 1rem .55rem; color: #8c8c8c; font-size: .75rem; line-height: 1.35; white-space: nowrap; }
@@ -210,10 +211,9 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-actions-desktop { display: none !important; }
   .detail-toolbar-actions-mobile { display: flex; flex: none; gap: .35rem; margin-left: auto; }
   .detail-toolbar-actions-mobile .tag-picker > button,
-  .detail-toolbar-icon-action { display: inline-grid; place-items: center; min-width: 32px; padding-inline: .5rem; }
+  .detail-toolbar-icon-action { display: inline-grid; place-items: center; min-width: 42px; padding-inline: .5rem; }
   .detail-toolbar-more { display: block; flex: none; text-align: right; }
   .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: block; }
-  .detail-toolbar-more > .btn { min-width: 32px; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .6rem; min-width: 10rem; padding-block: .35rem; text-align: left; }
   .detail-toolbar-more .dropdown-item { cursor: pointer; font-size: 1rem; }
   .detail-toolbar-more .dropdown-item i, .detail-toolbar-more .dropdown-item .spinner-border { width: 1rem; flex: none; text-align: center; }
