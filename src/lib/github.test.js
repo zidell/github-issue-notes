@@ -9,6 +9,7 @@ import {
   listIssueAttachmentFiles,
   listIssues,
   listIssuesPage,
+  renameLabel,
   searchIssues,
   searchIssuesPage,
   updateIssue,
@@ -228,6 +229,18 @@ describe('GitHub API client', () => {
     expect(fetch.mock.calls[1][0]).toBe(
       'https://api.github.com/repos/owner/repo/labels/%EC%97%AC%ED%96%89%20%EA%B3%84%ED%9A%8D'
     );
+  });
+
+  it('라벨 이름을 바꿀 때 기존 색상은 변경하지 않는다', async () => {
+    fetch.mockResolvedValueOnce(jsonResponse({ id: 7, name: '새 이름', color: '123456' }));
+
+    await renameLabel('token', 'owner/repo', '기존 이름', '새 이름');
+
+    expect(fetch.mock.calls[0][0]).toBe(
+      'https://api.github.com/repos/owner/repo/labels/%EA%B8%B0%EC%A1%B4%20%EC%9D%B4%EB%A6%84'
+    );
+    expect(fetch.mock.calls[0][1].method).toBe('PATCH');
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ new_name: '새 이름' });
   });
 
   it('Link 헤더가 없어도 100개인 댓글 페이지를 끝까지 읽는다', async () => {

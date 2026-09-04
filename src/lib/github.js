@@ -193,7 +193,7 @@ export async function renameLabel(token, repoInput, currentName, newName) {
   const repo = normalizeRepo(repoInput);
   return request(`/repos/${repo}/labels/${encodeURIComponent(currentName)}`, token, {
     method: 'PATCH',
-    body: JSON.stringify({ new_name: newName, color: tagColorForName(newName) })
+    body: JSON.stringify({ new_name: newName })
   });
 }
 
