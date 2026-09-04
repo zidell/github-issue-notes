@@ -98,6 +98,7 @@ button, input, textarea { font: inherit; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
 .note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; opacity: .6; pointer-events: auto; }
 .note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 35%, white); background: color-mix(in srgb, var(--tag-color) 32%, #242424); }
+.note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .7rem; width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: 50%; color: #b8c9ef; background: rgba(20, 26, 38, .72); opacity: .72; pointer-events: none; transform: translateY(-50%); }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
 .list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; }
 .list-status, .detail-empty { display: flex; align-items: center; justify-content: center; gap: .5rem; height: 100%; padding: 2rem; color: #888; font-size: .85rem; text-align: center; }
@@ -188,12 +189,46 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-more { display: block; flex: 1; text-align: right; }
   .detail-toolbar-more > .btn { min-width: 32px; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .6rem; min-width: 10rem; padding-block: .35rem; text-align: left; }
-  .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; cursor: pointer; font-size: .85rem; }
+  .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; cursor: pointer; font-size: 1rem; }
   .detail-toolbar-more .dropdown-item i, .detail-toolbar-more .dropdown-item .spinner-border { width: 1rem; flex: none; text-align: center; }
-  .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: .85rem; text-align: left; }
+  .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: 1rem; text-align: left; }
   .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
   .detail-toolbar-more-tag .tag-dropdown { right: calc(100% + .35rem); top: 0; left: auto; }
   .attachment-viewer-stage { padding: 1rem 3rem; }
+
+  html[data-note-transition] { view-transition-name: none; }
+  html[data-note-transition] .app-shell { view-transition-name: note-stack; }
+  html[data-note-transition] .note-sidebar,
+  html[data-note-transition] .note-detail { transition: none; }
+
+  html[data-note-transition="forward"]::view-transition-old(note-stack) {
+    animation: note-stack-out-left 240ms ease-out both;
+  }
+  html[data-note-transition="forward"]::view-transition-new(note-stack) {
+    animation: note-stack-in-right 240ms ease-out both;
+  }
+  html[data-note-transition="backward"]::view-transition-old(note-stack) {
+    animation: note-stack-out-right 240ms ease-out both;
+  }
+  html[data-note-transition="backward"]::view-transition-new(note-stack) {
+    animation: note-stack-in-left 240ms ease-out both;
+  }
+}
+
+@keyframes note-stack-out-left {
+  to { opacity: .72; transform: translateX(-24%); }
+}
+
+@keyframes note-stack-in-right {
+  from { transform: translateX(100%); }
+}
+
+@keyframes note-stack-out-right {
+  to { transform: translateX(100%); }
+}
+
+@keyframes note-stack-in-left {
+  from { opacity: .72; transform: translateX(-24%); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
@@ -24,6 +24,7 @@
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
 
   let token = '';
+  let tokenInputValue = '';
   let repo = '';
   let rememberToken = true;
   let appState = 'booting';
@@ -65,6 +66,8 @@
   let lastSidebarScrollTop = 0;
   let issueRefreshSequence = 0;
   let issueRefreshRequests = {};
+  let refreshingIssueNumber = null;
+  let pendingRouteTransition = null;
   let tokenInput;
 
   $: emptyMessage = query
@@ -93,6 +96,34 @@
   onMount(() => {
     router.init();
     const unsubscribe = router.subscribe((stack) => {
+      const targetSignature = stack.map((route) => route.segment).join('/');
+      if (targetSignature === pendingRouteTransition) return;
+      const hadContent = routeStack.some((route) => ['note', 'new'].includes(route.screen));
+      const hasContent = stack.some((route) => ['note', 'new'].includes(route.screen));
+      const transitionDirection = !hadContent && hasContent
+        ? 'forward'
+        : hadContent && !hasContent ? 'backward' : '';
+
+      if (shouldAnimateNoteTransition(transitionDirection)) {
+        pendingRouteTransition = targetSignature;
+        document.documentElement.dataset.noteTransition = transitionDirection;
+        const transition = document.startViewTransition(async () => {
+          updateRouteStack(stack);
+          await tick();
+        });
+        const clearTransitionDirection = () => {
+          if (pendingRouteTransition !== targetSignature) return;
+          pendingRouteTransition = null;
+          delete document.documentElement.dataset.noteTransition;
+        };
+        transition.finished.then(clearTransitionDirection, clearTransitionDirection);
+        return;
+      }
+
+      updateRouteStack(stack);
+    });
+
+    function updateRouteStack(stack) {
       const wasInSettings = routeStack.at(-1)?.screen === 'settings';
       const isInSettings = stack.at(-1)?.screen === 'settings';
       const previousLabel = labelFromRoutes(routeStack);
@@ -111,7 +142,7 @@
       }
       applyRoute();
       if (previousLabel !== nextLabel && appState === 'ready' && !isInSettings) loadIssues();
-    });
+    }
 
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -147,6 +178,15 @@
       router.destroy();
     };
   });
+
+  function shouldAnimateNoteTransition(direction) {
+    return Boolean(
+      direction
+      && appState === 'ready'
+      && document.startViewTransition
+      && matchMedia('(max-width: 991.98px)').matches
+    );
+  }
 
   function applyRoute() {
     const route = [...routeStack].reverse().find((item) => ['note', 'new'].includes(item.screen));
@@ -251,7 +291,8 @@
 
   async function connect(showSuccess = true, restoring = false) {
     const fromSettings = routeStack.at(-1)?.screen === 'settings' && Boolean(settingsSnapshot);
-    const requestedToken = normalizeToken(tokenInput?.value || token);
+    const replacementToken = normalizeToken(tokenInput?.value || tokenInputValue);
+    const requestedToken = replacementToken || (fromSettings ? settingsSnapshot.token : token);
     const requestedRepo = repo;
     error = '';
     notice = '';
@@ -260,6 +301,7 @@
       const result = await verifyConnection(requestedToken, requestedRepo);
       if (fromSettings && routeStack.at(-1)?.screen !== 'settings') return;
       token = requestedToken;
+      tokenInputValue = '';
       repo = result.repo;
       user = result.user;
       repository = result.repository;
@@ -445,12 +487,18 @@
 
   function selectNote(issue) {
     if (!issue.local) {
+      refreshingIssueNumber = issue.number;
       issueRefreshRequests = {
         ...issueRefreshRequests,
         [issue.number]: ++issueRefreshSequence
       };
     }
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
+  }
+
+  function noteRefreshStateChanged(issueNumber, active) {
+    if (active) refreshingIssueNumber = issueNumber;
+    else if (refreshingIssueNumber === issueNumber) refreshingIssueNumber = null;
   }
 
   function noteSaved(savedIssue) {
@@ -605,13 +653,13 @@
     if (!settingsSnapshot) return true;
     const requestedRepo = repositoryName(repo)?.fullName || repo.trim();
     const savedRepo = repositoryName(settingsSnapshot.repo)?.fullName || settingsSnapshot.repo.trim();
-    return token.trim() !== settingsSnapshot.token.trim()
+    return Boolean(normalizeToken(tokenInput?.value || tokenInputValue))
       || requestedRepo.toLocaleLowerCase() !== savedRepo.toLocaleLowerCase();
   }
 
   function finishLocalSettingsSave() {
     const pageSizeChanged = issuePageSize !== settingsSnapshot?.issuePageSize;
-    token = token.trim();
+    tokenInputValue = '';
     repo = repository?.full_name || repositoryName(repo)?.fullName || repo.trim();
     autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
@@ -743,6 +791,7 @@
     error = '';
     notice = '';
     labelRenameDrafts = [];
+    tokenInputValue = '';
     router.push('settings');
   }
 
@@ -761,6 +810,7 @@
       languagePreference
     } = settingsSnapshot);
     setAppLocale(languagePreference);
+    tokenInputValue = '';
     settingsSnapshot = null;
     labelRenameDrafts = [];
     error = '';
@@ -774,6 +824,7 @@
     if (!confirm($_("m.ad0db93efe"))) return;
     localStorage.removeItem(STORAGE_KEY);
     token = '';
+    tokenInputValue = '';
     repo = '';
     user = null;
     repository = null;
@@ -903,16 +954,16 @@
               <input
                 bind:this={tokenInput}
                 id="token"
-                type="text"
+                type="password"
                 class="form-control form-control-lg font-monospace"
-                bind:value={token}
-                placeholder="github_pat_..."
+                bind:value={tokenInputValue}
+                placeholder={topRoute?.screen === 'settings' ? $_('settings.patReplacementPlaceholder') : 'github_pat_...'}
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="none"
                 inputmode="text"
                 spellcheck="false"
-                required
+                required={topRoute?.screen !== 'settings'}
               />
               <div class="form-text">
                 {$_("m.4abc5f6e21")}
@@ -1253,6 +1304,11 @@
                     {/each}
                   </div>
                 {/if}
+                {#if refreshingIssueNumber === issue.number}
+                  <span class="note-row-refresh-spinner" aria-label={$_("m.6e6e21803f")}>
+                    <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
+                  </span>
+                {/if}
               </article>
               {/each}
               {#if hasMoreIssues}
@@ -1306,6 +1362,7 @@
               {labelMutation}
               onSaved={noteSaved}
               onRefreshed={noteRefreshed}
+              onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
               onCreated={noteCreated}
               onDraftChange={pendingNoteChanged}
               onLabelsAvailable={mergeRepositoryLabels}

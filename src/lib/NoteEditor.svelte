@@ -38,6 +38,7 @@
   export let onCreated = () => {};
   export let onDraftChange = () => {};
   export let onRefreshed = () => {};
+  export let onRefreshStateChange = () => {};
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
@@ -356,12 +357,19 @@
     if (refreshRequest <= handledRefreshRequest) return;
     handledRefreshRequest = refreshRequest;
     if (!dirty && !saving) refreshIssue(true);
+    else onRefreshStateChange(false);
   }
 
   async function refreshIssue(background = false) {
     const targetIssue = issue || remoteIssue;
-    if (!targetIssue?.number || saving || refreshing || backgroundRefreshing) return;
-    if (background && dirty) return;
+    if (!targetIssue?.number || saving || refreshing || backgroundRefreshing) {
+      if (background) onRefreshStateChange(false);
+      return;
+    }
+    if (background && dirty) {
+      onRefreshStateChange(false);
+      return;
+    }
     if (!background && dirty && !confirm($_("m.37533033a1"))) {
       return;
     }
@@ -369,7 +377,10 @@
     const hadDirtyChanges = dirty;
     const startingRevision = revision;
     const startingSignature = noteSignature(currentNote());
-    if (background) backgroundRefreshing = true;
+    if (background) {
+      backgroundRefreshing = true;
+      onRefreshStateChange(true);
+    }
     else {
       refreshing = true;
       error = '';
@@ -409,7 +420,10 @@
       error = reason?.message || $_("m.a129ed8520");
       if (hadDirtyChanges) scheduleRemoteSave();
     } finally {
-      if (background) backgroundRefreshing = false;
+      if (background) {
+        backgroundRefreshing = false;
+        onRefreshStateChange(false);
+      }
       else refreshing = false;
     }
   }
