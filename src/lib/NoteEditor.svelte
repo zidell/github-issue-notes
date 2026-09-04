@@ -235,13 +235,17 @@
   }
 
   function notifyDraftChange() {
+    onDraftChange(draftPayload());
+  }
+
+  function draftPayload() {
     const resolvedTitle = titleMode === 'first-line' ? automaticTitle(body) : title.trim();
-    onDraftChange({
+    return {
       title: resolvedTitle || $_("m.2b7b05c002"),
       body,
       labels: labels.map((name) => ({ name })),
       updated_at: new Date().toISOString()
-    });
+    };
   }
 
   function scheduleRemoteSave(delay = autoSaveSeconds * 1000) {
@@ -302,7 +306,6 @@
     }
 
     const savingRevision = revision;
-    title = note.title;
     saving = true;
     saveFailed = false;
     error = '';
@@ -325,8 +328,9 @@
 
       remoteIssue = saved;
       lastRemoteSignature = signature;
-      if (issue) onSaved(saved);
-      if (savingRevision === revision && noteSignature(currentNote()) === signature) {
+      const hasNewerChanges = savingRevision !== revision || noteSignature(currentNote()) !== signature;
+      if (issue) onSaved(saved, hasNewerChanges ? draftPayload() : null);
+      if (!hasNewerChanges) {
         dirty = false;
         removeLocalDraft();
       } else {
@@ -334,7 +338,7 @@
       }
       saveFailed = false;
 
-      if (!issue) onCreated(saved);
+      if (!issue && !hasNewerChanges) onCreated(saved);
     } catch (reason) {
       saveFailed = true;
       error = reason?.status === 401
@@ -636,7 +640,7 @@
   }
 
   async function removeAttachment(attachment) {
-    if (archived || saving || deletingPath) return;
+    if (archived || deletingPath) return;
     if (!confirm($_('dynamic.deleteAttachmentConfirm', { values: { name: attachment.name } }))) return;
     deletingPath = attachment.path;
     error = '';
@@ -789,13 +793,13 @@
   }
 
   function addTag(name) {
-    if (!name || hasLabel(name) || archived || saving) return;
+    if (!name || hasLabel(name) || archived) return;
     labels = [...labels, name];
     changed();
   }
 
   function removeTag(name) {
-    if (archived || saving) return;
+    if (archived) return;
     labels = labels.filter((label) => label !== name);
     changed();
   }
@@ -808,22 +812,6 @@
       <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label={$_("m.747f5bd6a0")}>
         <i class="bi bi-arrow-left" aria-hidden="true"></i> {$_("m.a1fffaaafb")}
       </button>
-      {#if issue}
-        <button
-          class="detail-refresh-desktop btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
-          disabled={saving || refreshing}
-          on:click={() => refreshIssue()}
-          aria-label={$_("m.08d0b800a8")}
-          title={$_("m.08d0b800a8")}
-        >
-          {#if refreshing}
-            <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-          {:else}
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-          {/if}
-          <span>{$_("m.56e3badc4e")}</span>
-        </button>
-      {/if}
     </div>
     <div class="detail-toolbar-center">
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
@@ -839,7 +827,7 @@
         type="file"
         id={`inline-attachment-${editorId}`}
         multiple
-        disabled={saving || refreshing || uploadBatchActive}
+        disabled={uploadBatchActive}
         on:change={(event) => uploadFiles(event.currentTarget.files)}
       />
     {/if}
@@ -849,7 +837,6 @@
           toolbar
           {availableLabels}
           selectedLabels={labels}
-          disabled={saving || refreshing}
           onSelect={addTag}
         />
       {/if}
@@ -862,7 +849,6 @@
       {#if issue}
         <button
           class="btn btn-sm btn-outline-secondary"
-          disabled={saving || refreshing}
           on:click={() => onMove(issue)}
         >
           <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
@@ -883,29 +869,12 @@
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-        {#if issue}
-          <button
-            type="button"
-            class="dropdown-item"
-            disabled={saving || refreshing}
-            on:click={() => refreshIssue()}
-          >
-            {#if refreshing}
-              <span class="spinner-border spinner-border-sm region-spinner" aria-hidden="true"></span>
-            {:else}
-              <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-            {/if}
-            {$_("m.56e3badc4e")}
-          </button>
-          <div class="dropdown-divider"></div>
-        {/if}
         {#if !archived && !labels.length}
           <div class="detail-toolbar-more-tag">
             <TagPicker
               toolbar
               {availableLabels}
               selectedLabels={labels}
-              disabled={saving || refreshing}
               onSelect={addTag}
             />
           </div>
@@ -920,7 +889,6 @@
           <button
             type="button"
             class="dropdown-item"
-            disabled={saving || refreshing}
             on:click={() => onMove(issue)}
           >
             <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
@@ -964,7 +932,7 @@
                 <button
                   type="button"
                   class="attachment-delete"
-                  disabled={Boolean(deletingPath) || saving}
+                  disabled={Boolean(deletingPath)}
                   on:click={() => removeAttachment(attachment)}
                   aria-label={$_('dynamic.deleteAttachment', { values: { name: attachment.name } })}
                 >
@@ -983,12 +951,12 @@
               type="file"
               id={`inline-attachment-${editorId}`}
               multiple
-              disabled={saving || refreshing || uploadBatchActive}
+              disabled={uploadBatchActive}
               on:change={(event) => uploadFiles(event.currentTarget.files)}
             />
             <label
               class="attachment-add-tile"
-              class:disabled={saving || refreshing || uploadBatchActive}
+              class:disabled={uploadBatchActive}
               for={`inline-attachment-${editorId}`}
             >
               <strong><i class="bi bi-plus-lg" aria-hidden="true"></i></strong>
@@ -1019,7 +987,6 @@
           <TagPicker
             {availableLabels}
             selectedLabels={labels}
-            disabled={saving || refreshing}
             onSelect={addTag}
           />
         {/if}
@@ -1034,7 +1001,7 @@
         placeholder={$_("m.768e0c1c69")}
         maxlength="256"
         aria-label={$_("m.45e6c4d69d")}
-        readonly={archived || refreshing}
+        readonly={archived}
         on:blur={() => flushRemoteSave()}
       />
     {/if}
@@ -1057,7 +1024,7 @@
       on:drop={handleDrop}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
       aria-label={$_("m.6aa90334da")}
-      readonly={archived || refreshing}
+      readonly={archived}
     ></textarea>
     {#if activeLink}
       <a

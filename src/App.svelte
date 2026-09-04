@@ -437,7 +437,9 @@
 
   function newNote() {
     error = '';
+    const stateChanged = state !== 'open';
     const hadQuery = Boolean(query.trim());
+    state = 'open';
     query = '';
     if (!pendingNote) {
       pendingNote = {
@@ -455,7 +457,7 @@
     }
     selectedIssue = pendingNote;
     router.navigate('new');
-    if (hadQuery) loadIssues();
+    if (hadQuery || stateChanged) loadIssues();
   }
 
   async function allocatePendingIssue(localNote) {
@@ -501,12 +503,13 @@
     else if (refreshingIssueNumber === issueNumber) refreshingIssueNumber = null;
   }
 
-  function noteSaved(savedIssue) {
-    issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
+  function noteSaved(savedIssue, localDraft = null) {
+    const displayedIssue = localDraft ? { ...savedIssue, ...localDraft } : savedIssue;
+    issues = issues.map((issue) => issue.id === savedIssue.id ? displayedIssue : issue);
     const savedIssueIsActive = contentRoute?.screen === 'note'
       && Number(contentRoute.value) === savedIssue.number;
-    if (savedIssueIsActive) selectedIssue = savedIssue;
-    if (savedIssueIsActive && activeLabel && !hasIssueLabel(savedIssue, activeLabel)) {
+    if (savedIssueIsActive) selectedIssue = displayedIssue;
+    if (savedIssueIsActive && activeLabel && !hasIssueLabel(displayedIssue, activeLabel)) {
       router.navigate(`/note.${savedIssue.number}`);
     }
   }
@@ -552,10 +555,16 @@
       || tagColorForName(label?.name);
   }
 
-  function pendingNoteChanged(draft) {
-    if (!pendingNote) return;
-    pendingNote = { ...pendingNote, ...draft };
-    if (isNewRoute) selectedIssue = pendingNote;
+  function noteDraftChanged(sourceIssue, draft) {
+    if (!sourceIssue) {
+      if (!pendingNote) return;
+      pendingNote = { ...pendingNote, ...draft };
+      if (isNewRoute) selectedIssue = pendingNote;
+      return;
+    }
+
+    issues = issues.map((issue) => issue.id === sourceIssue.id ? { ...issue, ...draft } : issue);
+    if (selectedIssue?.id === sourceIssue.id) selectedIssue = { ...selectedIssue, ...draft };
   }
 
   function mergeRepositoryLabels(nextLabels) {
@@ -1205,11 +1214,9 @@
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
             </div>
           </div>
-          {#if state === 'open'}
-            <button class="btn btn-primary" on:click={newNote}>
-              <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
-            </button>
-          {/if}
+          <button class="btn btn-primary responsive-toolbar-button" on:click={newNote}>
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
+          </button>
         </div>
 
         {#if error}
@@ -1364,7 +1371,7 @@
               onRefreshed={noteRefreshed}
               onRefreshStateChange={(active) => noteRefreshStateChanged(routeIssue?.number, active)}
               onCreated={noteCreated}
-              onDraftChange={pendingNoteChanged}
+              onDraftChange={(draft) => noteDraftChanged(routeIssue, draft)}
               onLabelsAvailable={mergeRepositoryLabels}
               onMove={(issue) => moveIssue(issue, state === 'open' ? 'closed' : 'open')}
               onBack={() => router.pop()}
