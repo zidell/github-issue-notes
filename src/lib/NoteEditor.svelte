@@ -3,6 +3,7 @@
   import { tagColorForName } from './colors.js';
   import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
+  import { externalLinkTarget } from './external-links.js';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
@@ -51,6 +52,7 @@
   const DRAFTS_KEY = 'issue-note.drafts.v1';
   const MAX_ATTACHMENTS = 30;
   const draftId = issue ? `issue.${issue.number}` : 'new';
+  const newContextTarget = externalLinkTarget();
 
   let title = issue?.title || initialDraft?.title || '';
   let body = issue?.body || initialDraft?.body || '';
@@ -644,6 +646,12 @@
     flushRemoteSave();
   }
 
+  function keepLinkTooltipOpen(event) {
+    // A mouse click normally blurs the textarea before the anchor receives its
+    // click. That unmounts this cursor tooltip and loses the navigation.
+    event.preventDefault();
+  }
+
   function isImage(attachment) {
     return attachment?.type?.startsWith('image/')
       || /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(attachment?.name || '');
@@ -967,7 +975,7 @@
             <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
             {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
           </button>
-          <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
+          <a class="dropdown-item" href={issue.html_url} target={newContextTarget} rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
           </a>
           <div class="dropdown-divider"></div>
@@ -1101,8 +1109,9 @@
         class="editor-link-tooltip"
         style={linkTooltipStyle}
         href={activeLink.url}
-        target="_blank"
+        target={newContextTarget}
         rel="noopener noreferrer"
+        on:mousedown={keepLinkTooltipOpen}
         title={activeLink.url}
         aria-label={$_('dynamic.openLink', { values: { url: activeLink.url } })}
       >

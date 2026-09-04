@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { createStackRouter } from 'spa-stack-router';
   import BrailleSpinner from './lib/BrailleSpinner.svelte';
+  import { externalLinkTarget } from './lib/external-links.js';
   import NoteEditor from './lib/NoteEditor.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import { tagColorForName } from './lib/colors.js';
@@ -27,6 +28,7 @@
   const BACKGROUND_REFRESH_MS = 60 * 60 * 1000;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
+  const newContextTarget = externalLinkTarget();
 
   let token = '';
   let tokenInputValue = '';
@@ -1047,7 +1049,7 @@
                       <span>{$_("m.173f95f145")}</span>
                     </li>
                   </ol>
-                  <a class="btn btn-outline-primary w-100" href="https://github.com/new" target="_blank" rel="noreferrer">
+                  <a class="btn btn-outline-primary w-100" href="https://github.com/new" target={newContextTarget} rel="noreferrer">
                     <i class="bi bi-github" aria-hidden="true"></i> {$_("m.ca57d50f39")}
                   </a>
                 </div>
@@ -1117,7 +1119,7 @@
                 <a
                   class="btn btn-outline-primary w-100"
                   href={patCreationUrl}
-                  target="_blank"
+                  target={newContextTarget}
                   rel="noreferrer"
                 >
                   <i class="bi bi-key" aria-hidden="true"></i>
@@ -1263,7 +1265,7 @@
                   <a
                     class="btn btn-sm btn-outline-secondary w-100"
                     href="https://github.com/github/github-mcp-server"
-                    target="_blank"
+                    target={newContextTarget}
                     rel="noreferrer"
                   ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_("m.6b45c11893")}</a>
                 </div>

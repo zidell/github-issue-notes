@@ -117,7 +117,8 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
 .detail-toolbar-more { display: none; }
 .detail-toolbar-more.has-issue { display: block; }
-.detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider, .detail-toolbar-desktop-delete { display: none; }
+.detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
+.detail-toolbar-more .detail-toolbar-desktop-delete { display: none; }
 .detail-toolbar-timestamps { display: grid; gap: .2rem; padding: .45rem 1rem .55rem; color: #8c8c8c; font-size: .75rem; line-height: 1.35; white-space: nowrap; }
 .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
@@ -180,7 +181,7 @@ button, input, textarea { font: inherit; }
 @media (min-width: 992px) {
   .detail-toolbar-more { display: none; }
   .detail-toolbar-more.has-issue { display: block; }
-  .detail-toolbar-desktop-delete { display: flex; }
+  .detail-toolbar-more .detail-toolbar-desktop-delete { display: flex; }
   .detail-toolbar-more .dropdown-menu { min-width: auto; }
 }
 
