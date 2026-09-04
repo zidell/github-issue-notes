@@ -488,7 +488,7 @@
     lastSidebarScrollTop = nextScrollTop;
   }
 
-  function newNote(initialBody = '', { ignoreRecoveredDraft = false } = {}) {
+  function newNote(initialBody = '', { ignoreRecoveredDraft = true } = {}) {
     const pastedBody = typeof initialBody === 'string' ? initialBody : '';
     error = '';
     const stateChanged = state !== 'open';
@@ -860,25 +860,36 @@
     else router.navigate('/');
   }
 
-  async function moveIssue(issue, nextState) {
+  function moveIssue(issue, nextState) {
     const confirmKey = nextState === 'closed' ? 'dynamic.moveToTrashConfirm' : 'dynamic.restoreConfirm';
     if (!confirm($_(confirmKey, { values: { title: issue.title } }))) return;
 
     error = '';
-    try {
-      await setIssueState(token, repo, issue.number, nextState);
-      issues = issues.filter((item) => item.id !== issue.id);
-      totalIssues = Math.max(0, totalIssues - 1);
-      if (selectedIssue?.id === issue.id) {
-        selectedIssue = null;
-        if (router.getDepth()) router.popTo(0);
-      }
+    const removedIndex = issues.findIndex((item) => item.id === issue.id);
+    const wasSelected = selectedIssue?.id === issue.id;
+
+    // 휴지통 이동/복원은 목록에서 즉시 반영하고, GitHub 요청은 뒤에서 처리한다.
+    issues = issues.filter((item) => item.id !== issue.id);
+    totalIssues = Math.max(0, totalIssues - 1);
+    if (wasSelected) {
+      selectedIssue = null;
+      if (router.getDepth()) router.popTo(0);
+    }
+
+    void setIssueState(token, repo, issue.number, nextState)
+      .then(() => {
       notice = nextState === 'closed'
         ? $_("m.1fe3b7e75f")
         : $_("m.a480a954e7");
-    } catch (reason) {
-      error = friendlyError(reason);
-    }
+      })
+      .catch((reason) => {
+        if (!issues.some((item) => item.id === issue.id)) {
+          const insertionIndex = removedIndex < 0 ? issues.length : Math.min(removedIndex, issues.length);
+          issues = [...issues.slice(0, insertionIndex), issue, ...issues.slice(insertionIndex)];
+          totalIssues += 1;
+        }
+        error = friendlyError(reason);
+      });
   }
 
   function openSettings() {
@@ -1312,16 +1323,17 @@
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
             </div>
           </div>
-          <button class="btn btn-primary responsive-toolbar-button" on:click={newNote}>
+          <button
+            class="btn btn-primary responsive-toolbar-button"
+            on:click={newNote}
+            disabled={Boolean(pendingNote)}
+          >
             <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
           </button>
         </div>
 
         {#if error}
           <div class="sidebar-message text-danger">{error}</div>
-        {/if}
-        {#if notice}
-          <div class="sidebar-message text-success">{notice}</div>
         {/if}
 
         <div class="note-list" class:is-loading={loading}>

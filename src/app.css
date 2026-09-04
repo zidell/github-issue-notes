@@ -115,6 +115,7 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-start { white-space: nowrap; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
+.detail-toolbar-actions-mobile { display: none; }
 .detail-toolbar-more { display: none; }
 .detail-toolbar-more.has-issue { display: block; }
 .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
@@ -160,6 +161,8 @@ button, input, textarea { font: inherit; }
 .editor-tag button { padding: 0; border: 0; color: inherit; background: transparent; line-height: 1; opacity: .72; }
 .editor-tag button:hover { opacity: 1; }
 .tag-picker { position: relative; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.tag-picker.toolbar > button { display: inline-flex; align-items: center; gap: .35rem; }
+.tag-picker.toolbar > button.tag-picker-icon-only { gap: 0; }
 .tag-picker.toolbar .tag-dropdown { right: 0; left: auto; }
 .tag-picker-toggle { padding: .18rem .4rem; border: 1px dashed #4a4a4a; border-radius: 4px; color: #929292; background: transparent; font-size: .75rem; }
 .tag-picker-toggle:hover, .tag-picker-toggle[aria-expanded="true"] { color: #ccc; border-color: #666; background: #242424; }
@@ -195,6 +198,7 @@ button, input, textarea { font: inherit; }
   .mobile-detail-active .note-sidebar { transform: translateX(0); }
   .mobile-detail-active .note-detail { transform: translateX(0); }
   .detail-toolbar-start .mobile-back { display: inline-flex; align-items: center; gap: .3rem; }
+  .detail-toolbar-start .mobile-back-label { display: none; }
   .sidebar-heading, .detail-toolbar { min-height: 64px; padding-top: .75rem; padding-bottom: .75rem; }
   .sidebar-heading { padding-inline: .75rem; }
   .detail-toolbar { gap: .45rem; padding-inline: .55rem; }
@@ -204,7 +208,10 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-start { overflow: hidden; }
   .detail-toolbar-start .save-status { overflow: hidden; text-overflow: ellipsis; }
   .detail-toolbar-actions-desktop { display: none !important; }
-  .detail-toolbar-more { display: block; flex: 1; text-align: right; }
+  .detail-toolbar-actions-mobile { display: flex; flex: none; gap: .35rem; margin-left: auto; }
+  .detail-toolbar-actions-mobile .tag-picker > button,
+  .detail-toolbar-icon-action { display: inline-grid; place-items: center; min-width: 32px; padding-inline: .5rem; }
+  .detail-toolbar-more { display: block; flex: none; text-align: right; }
   .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: block; }
   .detail-toolbar-more > .btn { min-width: 32px; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .6rem; min-width: 10rem; padding-block: .35rem; text-align: left; }

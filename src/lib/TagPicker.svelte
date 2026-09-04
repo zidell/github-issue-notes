@@ -7,6 +7,7 @@
   export let selectedLabels = [];
   export let disabled = false;
   export let toolbar = false;
+  export let iconOnly = false;
   export let onSelect = () => {};
 
   let open = false;
@@ -76,14 +77,17 @@
   <button
     type="button"
     class:btn={toolbar}
-    class:btn-sm={toolbar}
+    class:btn-sm={toolbar && !iconOnly}
     class:btn-outline-secondary={toolbar}
     class:tag-picker-toggle={!toolbar}
+    class:tag-picker-icon-only={iconOnly}
     {disabled}
     aria-haspopup="listbox"
     aria-expanded={open}
+    aria-label={iconOnly ? $_("m.848eed0fbd") : undefined}
+    title={iconOnly ? $_("m.848eed0fbd") : undefined}
     on:click={toggle}
-  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i> {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}</button>
+  ><i class={`bi ${toolbar ? 'bi-tags' : 'bi-plus-lg'}`} aria-hidden="true"></i>{#if !iconOnly} {toolbar ? $_("m.848eed0fbd") : $_("m.61cc55aa04")}{/if}</button>
   {#if open}
     <div class="tag-dropdown">
       <input

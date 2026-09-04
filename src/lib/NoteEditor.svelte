@@ -884,7 +884,7 @@
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
       <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label={$_("m.747f5bd6a0")}>
-        <i class="bi bi-arrow-left" aria-hidden="true"></i> {$_("m.a1fffaaafb")}
+        <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
       <span class="save-status" aria-live="polite">
@@ -923,6 +923,26 @@
         </label>
       {/if}
     </div>
+    <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
+      {#if !archived}
+        <TagPicker
+          toolbar
+          iconOnly
+          {availableLabels}
+          selectedLabels={labels}
+          onSelect={addTag}
+        />
+        <label
+          class="btn btn-outline-secondary detail-toolbar-icon-action"
+          class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
+          for={`inline-attachment-${editorId}`}
+          aria-label={uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
+          title={uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
+        >
+          <i class="bi bi-paperclip" aria-hidden="true"></i>
+        </label>
+      {/if}
+    </div>
     <div class:has-issue={Boolean(issue)} class="dropdown detail-toolbar-more">
       <button
         class="btn btn-outline-secondary"
@@ -934,26 +954,6 @@
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         <div class="detail-toolbar-mobile-actions">
-          {#if !archived}
-            <div class="detail-toolbar-more-tag">
-              <TagPicker
-                toolbar
-                {availableLabels}
-                selectedLabels={labels}
-                onSelect={addTag}
-              />
-            </div>
-          {/if}
-          {#if !archived}
-            <label
-              class="dropdown-item"
-              class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
-              for={`inline-attachment-${editorId}`}
-            >
-              <i class="bi bi-paperclip" aria-hidden="true"></i>
-              {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
-            </label>
-          {/if}
           {#if issue}
             <button
               type="button"
