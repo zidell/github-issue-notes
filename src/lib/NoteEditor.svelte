@@ -24,6 +24,7 @@
   export let editorId = 'note';
   export let issue = null;
   export let initialDraft = null;
+  export let ignoreRecoveredDraft = false;
   export let externalPasteRequest = null;
   export let refreshRequest = 0;
   export let allocatedIssue = null;
@@ -126,7 +127,7 @@
   }
 
   onMount(() => {
-    const recovered = archived ? null : readDraft();
+    const recovered = archived || ignoreRecoveredDraft ? null : readDraft();
     if (recovered) {
       title = recovered.title;
       body = recovered.body;

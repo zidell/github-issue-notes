@@ -441,7 +441,7 @@
     lastSidebarScrollTop = nextScrollTop;
   }
 
-  function newNote(initialBody = '') {
+  function newNote(initialBody = '', { ignoreRecoveredDraft = false } = {}) {
     const pastedBody = typeof initialBody === 'string' ? initialBody : '';
     error = '';
     const stateChanged = state !== 'open';
@@ -454,6 +454,7 @@
         number: null,
         title: $_("m.2b7b05c002"),
         body: pastedBody,
+        ignoreRecoveredDraft,
         labels: activeLabel ? [{ name: activeLabel }] : [],
         updated_at: new Date().toISOString(),
         local: true,
@@ -499,7 +500,7 @@
     }
 
     notice = '';
-    newNote(text);
+    newNote(text, { ignoreRecoveredDraft: true });
     if (files.length) queueExternalPaste(files);
   }
 
@@ -1408,6 +1409,7 @@
               {repo}
               issue={routeIssue}
               initialDraft={route.screen === 'new' ? pendingNote : null}
+              ignoreRecoveredDraft={route.screen === 'new' && Boolean(pendingNote?.ignoreRecoveredDraft)}
               externalPasteRequest={route === contentRoute ? externalPasteRequest : null}
               refreshRequest={routeIssue ? issueRefreshRequests[routeIssue.number] || 0 : 0}
               allocatedIssue={route.screen === 'new' ? pendingNote?.allocatedIssue : null}
