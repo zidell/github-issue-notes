@@ -88,6 +88,7 @@
   let remoteTimer;
   let fileInput;
   let bodyInput;
+  let mobileTagPicker;
   let linkTooltip;
   let activeLink = null;
   let linkTooltipStyle = '';
@@ -873,6 +874,13 @@
     changed();
   }
 
+  function returnToList() {
+    // 태그 검색 input이 포커스를 잡고 있으면 모바일 키보드와 absolute 메뉴가
+    // 목록 전환 뒤에도 레이아웃에 영향을 줄 수 있어 먼저 닫고 blur 처리한다.
+    mobileTagPicker?.close();
+    onBack();
+  }
+
   function removeTag(name) {
     if (archived) return;
     labels = labels.filter((label) => label !== name);
@@ -884,7 +892,7 @@
 <div class="inline-editor">
   <div class="detail-toolbar">
     <div class="detail-toolbar-start">
-      <button class="btn btn-outline-secondary mobile-back" on:click={onBack} aria-label={$_("m.747f5bd6a0")}>
+      <button class="btn btn-outline-secondary mobile-back" on:click={returnToList} aria-label={$_("m.747f5bd6a0")}>
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
       <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
@@ -929,6 +937,7 @@
     <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
       {#if !archived}
         <TagPicker
+          bind:this={mobileTagPicker}
           toolbar
           iconOnly
           {availableLabels}

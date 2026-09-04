@@ -42,6 +42,12 @@
     if (open) requestAnimationFrame(() => searchInput?.focus());
   }
 
+  export function close() {
+    open = false;
+    search = '';
+    searchInput?.blur();
+  }
+
   function select(name) {
     onSelect(name);
     search = '';
