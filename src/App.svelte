@@ -526,7 +526,11 @@
       pendingAllocation = allocatePendingIssue(pendingNote);
     }
     selectedIssue = pendingNote;
-    router.navigate('new');
+    if (topRoute?.screen === 'note') {
+      router.replace('new');
+    } else {
+      router.navigate('new');
+    }
     if (hadQuery || stateChanged) loadIssues();
   }
 
