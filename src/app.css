@@ -97,8 +97,8 @@ button, input, textarea { font: inherit; }
 .note-row-content .note-row-preview.auto-title-preview { color: #e8e8e8; font-size: .9rem; font-weight: 600; }
 .note-row-meta, .reader-meta { color: #777; font-size: .72rem; }
 .note-row-labels { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .45rem; pointer-events: none; }
-.note-row-labels button { padding: .08rem .3rem; border: 1px solid color-mix(in srgb, var(--tag-color) 52%, #555); border-radius: 3px; color: color-mix(in srgb, var(--tag-color) 55%, white); background: color-mix(in srgb, var(--tag-color) 22%, #1c1c1c); font-size: .68rem; opacity: .6; pointer-events: auto; }
-.note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 35%, white); background: color-mix(in srgb, var(--tag-color) 32%, #242424); }
+.note-row-labels button { padding: .08rem .12rem; border: 0; color: var(--tag-color); background: transparent; font-size: .68rem; pointer-events: auto; }
+.note-row-labels button:hover { color: color-mix(in srgb, var(--tag-color) 72%, white); text-decoration: underline; }
 .note-row-refresh-spinner { position: absolute; z-index: 3; top: 50%; right: .7rem; width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: 50%; color: #b8c9ef; background: rgba(20, 26, 38, .72); opacity: .72; pointer-events: none; transform: translateY(-50%); }
 .list-load-more { display: flex; justify-content: center; padding: .85rem .75rem 1.25rem; }
 .list-load-more .btn { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; }
