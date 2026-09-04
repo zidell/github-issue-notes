@@ -1,4 +1,4 @@
-const CACHE_NAME = 'github-issue-notes-v1';
+const CACHE_NAME = 'github-issue-notes-v2';
 
 function appUrl(path) {
   return new URL(path, self.registration.scope).href;

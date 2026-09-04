@@ -3,5 +3,11 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   base: './',
-  plugins: [svelte()]
+  plugins: [svelte()],
+  server: {
+    strictPort: true,
+    watch: {
+      ignored: ['**/src-tauri/**']
+    }
+  }
 });
