@@ -891,6 +891,7 @@
             <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
             {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
           </button>
+          <div class="dropdown-divider"></div>
           <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> GitHub
           </a>
