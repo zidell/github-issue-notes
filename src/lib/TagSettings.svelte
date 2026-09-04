@@ -70,7 +70,7 @@
     <div class="tag-settings-list">
       {#each labels as label (label.id || label.name)}
         <div class="tag-settings-row">
-          <span class="label-dot" style={`--label-color:#${label.color || tagColorForName(label.name)}`}></span>
+          <span class="label-dot" style={`--label-color:#${tagColorForName(label.name)}`}></span>
           <input
             class="form-control form-control-sm"
             value={draftValue(label.name)}

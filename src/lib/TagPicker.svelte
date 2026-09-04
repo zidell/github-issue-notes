@@ -98,7 +98,7 @@
       <div class="tag-dropdown-list" aria-label={$_("m.9e704d11d1")}>
         {#each filteredLabels as label (label.id || label.name)}
           <button type="button" on:click={() => select(label.name)}>
-            <span class="label-dot" style={`--label-color:#${label.color || tagColorForName(label.name)}`}></span>
+            <span class="label-dot" style={`--label-color:#${tagColorForName(label.name)}`}></span>
             #{label.name}
           </button>
         {/each}

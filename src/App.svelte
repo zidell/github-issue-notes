@@ -548,11 +548,7 @@
   }
 
   function labelColor(label) {
-    return label?.color
-      || repositoryLabels.find(
-        (item) => item.name.toLocaleLowerCase() === label?.name?.toLocaleLowerCase()
-      )?.color
-      || tagColorForName(label?.name);
+    return tagColorForName(label?.name);
   }
 
   function noteDraftChanged(sourceIssue, draft) {

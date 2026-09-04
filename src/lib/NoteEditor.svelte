@@ -778,9 +778,7 @@
   }
 
   function tagColor(name) {
-    return `#${availableLabels.find(
-      (label) => label.name.toLocaleLowerCase() === name.toLocaleLowerCase()
-    )?.color || tagColorForName(name)}`;
+    return `#${tagColorForName(name)}`;
   }
 
   function applyLabelMutation(mutation) {
