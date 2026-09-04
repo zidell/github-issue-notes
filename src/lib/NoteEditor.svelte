@@ -1,7 +1,7 @@
 <script>
   import { afterUpdate, onDestroy, onMount, tick } from 'svelte';
   import { tagColorForName } from './colors.js';
-  import { _ } from 'svelte-i18n';
+  import { _, locale } from 'svelte-i18n';
   import BrailleSpinner from './BrailleSpinner.svelte';
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
@@ -801,6 +801,17 @@
     return `#${tagColorForName(name)}`;
   }
 
+  function formatTimestamp(value) {
+    if (!value) return '';
+    return new Intl.DateTimeFormat($locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  }
+
   function applyLabelMutation(mutation) {
     appliedLabelMutation = mutation.id;
     labels = labels
@@ -870,12 +881,9 @@
           <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
           {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
         </button>
-        <a class="btn btn-sm btn-outline-secondary" href={issue.html_url} target="_blank" rel="noreferrer">
-          <i class="bi bi-github" aria-hidden="true"></i> GitHub
-        </a>
       {/if}
     </div>
-    <div class="dropdown detail-toolbar-more">
+    <div class:has-issue={Boolean(issue)} class="dropdown detail-toolbar-more">
       <button
         class="btn btn-outline-secondary"
         type="button"
@@ -885,34 +893,44 @@
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-        {#if !archived && !labels.length}
-          <div class="detail-toolbar-more-tag">
-            <TagPicker
-              toolbar
-              {availableLabels}
-              selectedLabels={labels}
-              onSelect={addTag}
-            />
-          </div>
-        {/if}
-        {#if !archived && !attachments.length}
-          <label class="dropdown-item" for={`inline-attachment-${editorId}`}>
-            <i class="bi bi-paperclip" aria-hidden="true"></i>
-            {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
-          </label>
-        {/if}
+        <div class="detail-toolbar-mobile-actions">
+          {#if issue}
+            <div class="dropdown-header detail-toolbar-timestamps">
+              <span>{$_('dynamic.createdAt', { values: { date: formatTimestamp(issue.created_at) } })}</span>
+              <span>{$_('dynamic.updatedAt', { values: { date: formatTimestamp(issue.updated_at) } })}</span>
+            </div>
+          {/if}
+          {#if !archived && !labels.length}
+            <div class="detail-toolbar-more-tag">
+              <TagPicker
+                toolbar
+                {availableLabels}
+                selectedLabels={labels}
+                onSelect={addTag}
+              />
+            </div>
+          {/if}
+          {#if !archived && !attachments.length}
+            <label class="dropdown-item" for={`inline-attachment-${editorId}`}>
+              <i class="bi bi-paperclip" aria-hidden="true"></i>
+              {uploading ? $_('dynamic.uploading', { values: { count: uploading } }) : $_("m.1afff0157c")}
+            </label>
+          {/if}
+          {#if issue}
+            <button
+              type="button"
+              class="dropdown-item"
+              on:click={() => onMove(issue)}
+            >
+              <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+            </button>
+          {/if}
+        </div>
         {#if issue}
-          <button
-            type="button"
-            class="dropdown-item"
-            on:click={() => onMove(issue)}
-          >
-            <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-            {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
-          </button>
-          <div class="dropdown-divider"></div>
+          <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
           <a class="dropdown-item" href={issue.html_url} target="_blank" rel="noreferrer">
-            <i class="bi bi-github" aria-hidden="true"></i> GitHub
+            <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
           </a>
         {/if}
       </div>

@@ -116,6 +116,9 @@ button, input, textarea { font: inherit; }
 .detail-toolbar-actions { justify-content: flex-end; gap: .5rem; }
 .detail-toolbar-start .btn { display: inline-grid; place-items: center; min-width: 31px; }
 .detail-toolbar-more { display: none; }
+.detail-toolbar-more.has-issue { display: block; }
+.detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: none; }
+.detail-toolbar-timestamps { display: none; }
 .detail-toolbar-start .mobile-back { display: none; white-space: nowrap; }
 .inline-editor { position: relative; height: 100%; display: flex; flex-direction: column; }
 .save-status { display: inline-flex; align-items: center; gap: .35rem; margin-left: .25rem; color: #777; }
@@ -173,6 +176,12 @@ button, input, textarea { font: inherit; }
 .inline-title[readonly], .inline-body[readonly] { cursor: default; }
 .label-dot { width: .55rem; height: .55rem; flex: none; border-radius: 50%; background: var(--label-color); }
 
+@media (min-width: 992px) {
+  .detail-toolbar-more { display: none; }
+  .detail-toolbar-more.has-issue { display: block; }
+  .detail-toolbar-more .dropdown-menu { min-width: auto; }
+}
+
 * { scrollbar-color: #555 #1b1b1b; }
 
 @media (max-width: 991.98px) {
@@ -193,9 +202,11 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-start .save-status { overflow: hidden; text-overflow: ellipsis; }
   .detail-toolbar-actions-desktop { display: none !important; }
   .detail-toolbar-more { display: block; flex: 1; text-align: right; }
+  .detail-toolbar-mobile-actions, .detail-toolbar-mobile-divider { display: block; }
   .detail-toolbar-more > .btn { min-width: 32px; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .6rem; min-width: 10rem; padding-block: .35rem; text-align: left; }
   .detail-toolbar-more .dropdown-item { display: flex; align-items: center; gap: .55rem; cursor: pointer; font-size: 1rem; }
+  .detail-toolbar-timestamps { display: grid; gap: .2rem; padding: .45rem 1rem .55rem; color: #8c8c8c; font-size: .75rem; line-height: 1.35; white-space: nowrap; }
   .detail-toolbar-more .dropdown-item i, .detail-toolbar-more .dropdown-item .spinner-border { width: 1rem; flex: none; text-align: center; }
   .detail-toolbar-more-tag .tag-picker > button { width: 100%; display: flex; align-items: center; gap: .55rem; padding: var(--bs-dropdown-item-padding-y) var(--bs-dropdown-item-padding-x); border: 0; border-radius: 0; color: var(--bs-dropdown-link-color); background: transparent; font-size: 1rem; text-align: left; }
   .detail-toolbar-more-tag .tag-picker > button:hover { color: var(--bs-dropdown-link-hover-color); background: var(--bs-dropdown-link-hover-bg); }
