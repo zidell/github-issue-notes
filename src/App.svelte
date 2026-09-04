@@ -211,6 +211,9 @@
 
     if (route?.screen === 'note') {
       selectedIssue = issues.find((issue) => issue.number === issueNumber) || null;
+      // 삭제됐거나 더는 현재 목록에 없는 이슈의 오래된 URL은 본문 레이어를
+      // 비워 두지 않는다. 첫 목록 요청이 끝난 뒤 홈 목록으로 되돌린다.
+      if (!selectedIssue && appState === 'ready' && !loading) router.navigate('/');
       return;
     }
 
@@ -369,6 +372,7 @@
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
+      applyRoute();
       pruneExpiredAttachments();
       if (fromSettings) {
         settingsSnapshot = null;
