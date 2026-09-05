@@ -56,6 +56,7 @@ button, input, textarea { font: inherit; }
 
 .app-shell { height: 100%; overflow: hidden; background: #171717; }
 .app-toast { position: fixed; z-index: 1100; top: 50%; left: 50%; padding: .55rem .85rem; border: 1px solid #454545; border-radius: 5px; color: #eee; background: #292929; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); font-size: .85rem; pointer-events: none; transform: translate(-50%, -50%); }
+.avatar { width: 100%; height: 100%; border-radius: 50%; }
 .note-workspace { position: relative; height: 100%; display: grid; grid-template-columns: 340px minmax(0, 1fr); overflow: hidden; }
 .note-sidebar { min-width: 0; height: 100%; display: flex; flex-direction: column; border-right: 1px solid #363636; background: #191919; }
 .sidebar-heading { position: relative; z-index: 2; min-height: 46px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .4375rem .75rem; border-bottom: 1px solid #363636; background: #191919; }
@@ -63,18 +64,26 @@ button, input, textarea { font: inherit; }
 .sidebar-heading-title { min-width: 0; display: flex; align-items: baseline; gap: .5rem; }
 .sidebar-heading h1 { margin: 0; font-size: 1rem; font-weight: 650; }
 .sidebar-heading span { color: #888; font-size: .75rem; }
+.sidebar-profile { width: 1.9375rem; height: 1.9375rem; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; }
+.sidebar-profile:hover .avatar { box-shadow: 0 0 0 2px #526487; }
+.sidebar-profile:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
 .responsive-toolbar-button { --bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .875rem; }
 .sidebar-tools { --sidebar-tools-offset: 0px; position: sticky; z-index: 4; top: 0; padding: .65rem; border-bottom: 1px solid #363636; background: #191919; transform: translateY(calc(-1 * var(--sidebar-tools-offset))); will-change: transform; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
-.state-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
-.state-tabs button, .sidebar-search button { border: 1px solid #474747; color: #ccc; background: #252525; }
+.sidebar-new-note { padding: .65rem; border-bottom: 1px solid #303030; }
+.sidebar-new-note .btn { --bs-btn-padding-y: .4rem; }
+.state-tabs { isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
+.state-tabs button, .sidebar-search .btn { --bs-btn-color: #ccc; --bs-btn-bg: #252525; --bs-btn-border-color: #474747; --bs-btn-hover-color: #eee; --bs-btn-hover-bg: #303030; --bs-btn-hover-border-color: #555; --bs-btn-active-color: #eee; --bs-btn-active-bg: #383838; --bs-btn-active-border-color: #555; }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }
 .state-tabs button:last-child { margin-left: -1px; border-radius: 0 4px 4px 0; }
-.state-tabs button.active { position: relative; color: #fff; border-color: #666; background: #505050; }
-.sidebar-search { position: relative; display: flex; }
+.state-tabs button:hover { position: relative; z-index: 1; }
+.state-tabs button.active { position: relative; z-index: 2; }
+.sidebar-search { position: relative; }
+.sidebar-search .input-group { isolation: isolate; }
 .sidebar-search input { width: 100%; min-width: 0; border: 1px solid #474747; border-radius: 4px 0 0 4px; outline: none; color: #eee; background: #222; }
-.sidebar-search input:focus { position: relative; border-color: #2563eb; }
-.sidebar-search button { flex: none; margin-left: -1px; }
+.sidebar-search input:focus { position: relative; z-index: 2; border-color: #2563eb; }
+.sidebar-search .input-group > button { flex: none; margin-left: -1px; border-radius: 0 4px 4px 0; }
+.sidebar-search .input-group > button:hover { position: relative; z-index: 1; }
 .sidebar-label-suggestions { position: absolute; z-index: 5; top: calc(100% + .25rem); right: 0; left: 0; max-height: 240px; padding: .25rem; overflow-y: auto; border: 1px solid #444; border-radius: 4px; background: #242424; box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
 .sidebar-label-suggestions button { width: 100%; display: block; margin: 0; padding: .4rem .55rem; border: 0; border-radius: 3px; color: #ccc; background: transparent; font-size: .8rem; text-align: left; }
 .sidebar-label-suggestions button:hover, .sidebar-label-suggestions button.active { color: #fff; background: #343b4d; }
@@ -197,7 +206,10 @@ button, input, textarea { font: inherit; }
   .detail-toolbar-more .dropdown-menu { --bs-dropdown-item-padding-y: .55rem; min-width: auto; padding-block: .35rem; }
 }
 
-* { scrollbar-color: #555 #1b1b1b; }
+* { scrollbar-width: thin; scrollbar-color: #555 #1b1b1b; }
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: #1b1b1b; }
+*::-webkit-scrollbar-thumb { border-radius: 999px; background: #555; }
 
 @media (max-width: 991.98px) {
   .note-workspace { display: block; }
@@ -211,6 +223,7 @@ button, input, textarea { font: inherit; }
   .sidebar-heading, .detail-toolbar { min-height: 64px; padding-top: .75rem; padding-bottom: .75rem; }
   .sidebar-heading { padding-inline: .75rem; }
   .detail-toolbar { gap: .45rem; padding-inline: .55rem; }
+  .sidebar-profile { width: 2.375rem; height: 2.375rem; }
   .responsive-toolbar-button { --bs-btn-padding-y: .375rem; --bs-btn-padding-x: .75rem; --bs-btn-font-size: 1rem; }
   .detail-toolbar-start { flex: 1; }
   .detail-toolbar-start { overflow: hidden; }

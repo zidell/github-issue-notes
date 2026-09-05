@@ -77,9 +77,12 @@
   let labelMutationSequence = 0;
   let labelRenameDrafts = [];
   let settingsRouteOverride = '';
+  let sidebarScrollElement;
   let sidebarToolsElement;
   let sidebarToolsOffset = 0;
   let sidebarToolsRevealing = false;
+  let sidebarToolsInitialized = false;
+  let sidebarToolsInitializing = false;
   let sidebarSearchFocused = false;
   let sidebarSuggestionIndex = -1;
   let lastSidebarScrollTop = 0;
@@ -99,6 +102,9 @@
       : $_("m.123eda8d5e");
   $: patCreationUrl = makePatCreationUrl(repo);
   $: guideRepository = repositoryName(repo);
+  $: repositoryIssuesUrl = repository?.html_url
+    ? `${repository.html_url.replace(/\/$/, '')}/issues`
+    : guideRepository ? `https://github.com/${guideRepository.fullName}/issues` : '';
   $: mcpRepository = repository?.full_name || guideRepository?.fullName || repo.trim();
   $: mcpUsagePrompt = $_('dynamic.mcpPrompt', {
     values: { repo: mcpRepository || 'owner/repository', issueNumber: '{issue number}' }
@@ -118,6 +124,14 @@
   $: sidebarLabelSuggestions = repositoryLabels.filter((label) =>
     label.name.toLocaleLowerCase().includes(query.trim().replace(/^#/, '').toLocaleLowerCase())
   );
+  $: if (sidebarScrollElement && sidebarToolsElement && !sidebarToolsInitialized && !sidebarToolsInitializing) {
+    initializeSidebarTools();
+  }
+  $: if (!sidebarScrollElement && sidebarToolsInitialized) {
+    sidebarToolsInitialized = false;
+    sidebarToolsOffset = 0;
+    lastSidebarScrollTop = 0;
+  }
 
   function setLockSession(pin) {
     clearTimeout(lockSessionTimer);
@@ -599,6 +613,31 @@
     if (!labelWillChange) await loadIssues();
   }
 
+  async function initializeSidebarTools() {
+    sidebarToolsInitializing = true;
+    await tick();
+
+    const scrollElement = sidebarScrollElement;
+    const toolsHeight = sidebarToolsElement?.offsetHeight || 0;
+    if (!scrollElement || !toolsHeight) {
+      sidebarToolsInitializing = false;
+      return;
+    }
+
+    const previousScrollBehavior = scrollElement.style.scrollBehavior;
+    scrollElement.style.scrollBehavior = 'auto';
+    scrollElement.scrollTop = toolsHeight;
+    lastSidebarScrollTop = Math.max(0, scrollElement.scrollTop);
+    sidebarToolsOffset = Math.min(toolsHeight, lastSidebarScrollTop);
+    sidebarToolsRevealing = false;
+    sidebarToolsInitialized = true;
+
+    requestAnimationFrame(() => {
+      scrollElement.style.scrollBehavior = previousScrollBehavior;
+      sidebarToolsInitializing = false;
+    });
+  }
+
   function handleSidebarScroll(event) {
     const scrollElement = event.currentTarget;
     const nextScrollTop = Math.max(0, scrollElement.scrollTop);
@@ -608,14 +647,13 @@
     if (nextScrollTop <= 0) {
       sidebarToolsOffset = 0;
       sidebarToolsRevealing = true;
-    } else if (delta > 0) {
+    } else if (delta !== 0) {
       sidebarToolsRevealing = false;
-      sidebarToolsOffset = Math.min(toolsHeight, sidebarToolsOffset + delta);
-    } else if (delta < 0) {
-      sidebarToolsOffset = 0;
-      sidebarToolsRevealing = true;
+      sidebarToolsOffset = Math.max(0, Math.min(toolsHeight, sidebarToolsOffset + delta));
     }
     lastSidebarScrollTop = nextScrollTop;
+
+    if (sidebarToolsInitializing) return;
 
     const distanceFromBottom = scrollElement.scrollHeight - nextScrollTop - scrollElement.clientHeight;
     if (distanceFromBottom <= SIDEBAR_LOAD_MORE_THRESHOLD_PX) void loadMoreIssues();
@@ -1469,20 +1507,27 @@
       <aside class="note-sidebar">
         <div class="sidebar-heading">
           <div class="sidebar-heading-main">
-            <button class="btn btn-outline-secondary responsive-toolbar-button" on:click={openSettings}>
-              설정
-            </button>
+            {#if user && repositoryIssuesUrl}
+              <a
+                class="sidebar-profile"
+                href={repositoryIssuesUrl}
+                target={newContextTarget}
+                rel="noreferrer"
+                aria-label={`${repo} Issues`}
+              >
+                <img class="avatar" src={user.avatar_url} alt={user.login} />
+              </a>
+            {/if}
             <div class="sidebar-heading-title">
               <h1>{state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
             </div>
           </div>
           <button
-            class="btn btn-primary responsive-toolbar-button"
-            on:click={newNote}
-            disabled={Boolean(pendingNote)}
+            class="btn btn-outline-secondary responsive-toolbar-button"
+            on:click={openSettings}
           >
-            <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
+            <i class="bi bi-gear" aria-hidden="true"></i> {$_('settings.sidebarLabel')}
           </button>
         </div>
 
@@ -1491,7 +1536,7 @@
         {/if}
 
         <div class="note-list" class:is-loading={loading}>
-          <div class="note-list-scroll" on:scroll={handleSidebarScroll}>
+          <div class="note-list-scroll" bind:this={sidebarScrollElement} on:scroll={handleSidebarScroll}>
             <div
               class="sidebar-tools"
               class:is-revealing={sidebarToolsRevealing}
@@ -1506,22 +1551,25 @@
                   <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.e3bf62bb7f")}
                 </button>
               </div>
-              <form class="sidebar-search" on:submit|preventDefault={submitSearch}>
-                <input
-                  class="form-control form-control-sm"
-                  type="search"
-                  role="combobox"
-                  bind:value={query}
-                  placeholder={$_("m.55a302a1a9")}
-                  aria-label={$_("m.2bca6e4c82")}
-                  aria-autocomplete="list"
-                  aria-controls="sidebar-label-suggestions"
-                  aria-expanded={sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
-                  on:focus={() => sidebarSearchFocused = true}
-                  on:input={() => sidebarSuggestionIndex = -1}
-                  on:keydown={handleSidebarSearchKeydown}
-                  on:blur={() => sidebarSearchFocused = false}
-                />
+              <div class="sidebar-search">
+                <form class="input-group" on:submit|preventDefault={submitSearch}>
+                  <input
+                    class="form-control form-control-sm"
+                    type="search"
+                    role="combobox"
+                    bind:value={query}
+                    placeholder={$_("m.55a302a1a9")}
+                    aria-label={$_("m.2bca6e4c82")}
+                    aria-autocomplete="list"
+                    aria-controls="sidebar-label-suggestions"
+                    aria-expanded={sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
+                    on:focus={() => sidebarSearchFocused = true}
+                    on:input={() => sidebarSuggestionIndex = -1}
+                    on:keydown={handleSidebarSearchKeydown}
+                    on:blur={() => sidebarSearchFocused = false}
+                  />
+                  <button class="btn btn-sm" disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
+                </form>
                 {#if sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
                   <div class="sidebar-label-suggestions" id="sidebar-label-suggestions" role="listbox">
                     {#each sidebarLabelSuggestions as label, index (label.id || label.name)}
@@ -1536,8 +1584,16 @@
                     {/each}
                   </div>
                 {/if}
-                <button class="btn btn-sm" disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
-              </form>
+              </div>
+            </div>
+            <div class="sidebar-new-note">
+              <button
+                class="btn btn-primary btn-sm btn-block w-100"
+                on:click={newNote}
+                disabled={Boolean(pendingNote)}
+              >
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
+              </button>
             </div>
             {#if !loading && visibleIssues.length === 0}
               <div class="list-status">{emptyMessage}</div>

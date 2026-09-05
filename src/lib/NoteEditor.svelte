@@ -1178,7 +1178,7 @@
     </div>
     <div class:has-issue={Boolean(issue)} class="dropdown detail-toolbar-more">
       <button
-        class="btn btn-outline-secondary"
+        class="btn btn-outline-secondary responsive-toolbar-button"
         type="button"
         data-bs-toggle="dropdown"
         aria-expanded="false"

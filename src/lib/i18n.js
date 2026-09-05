@@ -58,13 +58,13 @@ const meta = {
   ko: { description: 'GitHub Issues를 저장소로 사용하는 서버 없는 개인 노트 앱', sourceCode: 'GitHub에서 소스 코드 보기' }
 };
 const settings = {
-  en: { language: 'Language', patReplacementPlaceholder: 'Enter only to replace the saved PAT' },
-  ko: { language: '언어', patReplacementPlaceholder: '저장된 PAT를 변경할 때만 입력하세요' },
-  'zh-CN': { language: '语言', patReplacementPlaceholder: '仅在更改已保存的 PAT 时输入' },
-  ja: { language: '言語', patReplacementPlaceholder: '保存済みのPATを変更する場合のみ入力' },
-  de: { language: 'Sprache', patReplacementPlaceholder: 'Nur zum Ändern des gespeicherten PAT eingeben' },
-  fr: { language: 'Langue', patReplacementPlaceholder: 'Saisir uniquement pour remplacer le PAT enregistré' },
-  it: { language: 'Lingua', patReplacementPlaceholder: 'Inserisci solo per sostituire il PAT salvato' }
+  en: { language: 'Language', sidebarLabel: 'Settings', patReplacementPlaceholder: 'Enter only to replace the saved PAT' },
+  ko: { language: '언어', sidebarLabel: '설정', patReplacementPlaceholder: '저장된 PAT를 변경할 때만 입력하세요' },
+  'zh-CN': { language: '语言', sidebarLabel: '设置', patReplacementPlaceholder: '仅在更改已保存的 PAT 时输入' },
+  ja: { language: '言語', sidebarLabel: '設定', patReplacementPlaceholder: '保存済みのPATを変更する場合のみ入力' },
+  de: { language: 'Sprache', sidebarLabel: 'Einstellungen', patReplacementPlaceholder: 'Nur zum Ändern des gespeicherten PAT eingeben' },
+  fr: { language: 'Langue', sidebarLabel: 'Paramètres', patReplacementPlaceholder: 'Saisir uniquement pour remplacer le PAT enregistré' },
+  it: { language: 'Lingua', sidebarLabel: 'Impostazioni', patReplacementPlaceholder: 'Inserisci solo per sostituire il PAT salvato' }
 };
 const setup = {
   en: {
