@@ -331,7 +331,7 @@
       return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
     }
     if (!activeLockPin) throw new Error('잠금 세션이 만료되었습니다.');
-    encryptedBody = await encryptLockedBody(note.body, activeLockPin);
+    encryptedBody = await encryptLockedBody(note.body, activeLockPin, issue?.number || remoteIssue?.number);
     return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
   }
 
@@ -398,7 +398,7 @@
   async function lockNote(pin) {
     activeLockPin = pin;
     onSetLockSession(pin);
-    encryptedBody = await encryptLockedBody(body, pin);
+    encryptedBody = await encryptLockedBody(body, pin, issue?.number || remoteIssue?.number);
     lockState = 'unlocked';
     lockPanelMode = '';
     removeLocalDraft();
@@ -411,7 +411,7 @@
     if (!encryptedBody || lockState !== 'locked') return;
     lockPanelBusy = true;
     try {
-      body = await decryptLockedBody(encryptedBody, pin);
+      body = await decryptLockedBody(encryptedBody, pin, issue?.number || remoteIssue?.number);
       activeLockPin = pin;
       lockState = 'unlocked';
       lockPanelMode = '';
