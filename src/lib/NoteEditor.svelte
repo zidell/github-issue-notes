@@ -1317,7 +1317,7 @@
     ></textarea>
     {#if lockState === 'locked' || lockPanelMode}
       <div class="note-lock-overlay">
-        <form class="note-lock-panel" on:submit|preventDefault={submitLockPanel}>
+        <form class="note-lock-panel" novalidate on:submit|preventDefault={submitLockPanel}>
           <i class={`bi ${lockPanelMode === 'lock' ? 'bi-lock' : 'bi-shield-lock'}`} aria-hidden="true"></i>
           <strong>{lockPanelMode === 'lock' ? '노트 잠금' : '잠긴 노트'}</strong>
           <p>{lockPanelMode === 'lock'
@@ -1328,7 +1328,6 @@
             class="form-control"
             type="text"
             inputmode="numeric"
-            pattern="[0-9]{6}"
             maxlength="6"
             autocomplete="off"
             bind:value={lockPanelPin}
