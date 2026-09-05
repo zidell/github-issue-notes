@@ -44,7 +44,7 @@
   <i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}
 </a>
 
-<main class="setup-shell setup-wizard-shell container py-4 py-md-5">
+<main class="setup-shell setup-wizard-shell px-3 py-4 py-md-5">
   <section class="setup-card setup-wizard card border-0 shadow-sm mx-auto overflow-hidden">
     <div class="bg-white p-4 p-md-5">
       <header class="setup-wizard-header">
