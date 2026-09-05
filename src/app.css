@@ -72,14 +72,13 @@ button, input, textarea { font: inherit; }
 .sidebar-tools.is-revealing { transition: transform 180ms ease-out; }
 .state-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: .5rem; }
 .state-tabs button, .sidebar-search button { border: 1px solid #474747; color: #ccc; background: #252525; }
-.state-tabs button { padding: .35rem .5rem; font-size: .8rem; }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }
 .state-tabs button:last-child { margin-left: -1px; border-radius: 0 4px 4px 0; }
 .state-tabs button.active { position: relative; color: #fff; border-color: #666; background: #505050; }
 .sidebar-search { display: flex; }
-.sidebar-search input { width: 100%; min-width: 0; padding: .4rem .55rem; border: 1px solid #474747; border-radius: 4px 0 0 4px; outline: none; color: #eee; background: #222; font-size: .85rem; }
+.sidebar-search input { width: 100%; min-width: 0; border: 1px solid #474747; border-radius: 4px 0 0 4px; outline: none; color: #eee; background: #222; }
 .sidebar-search input:focus { position: relative; border-color: #2563eb; }
-.sidebar-search button { flex: none; margin-left: -1px; padding: .35rem .55rem; font-size: .78rem; }
+.sidebar-search button { flex: none; margin-left: -1px; }
 .sidebar-message { padding: .55rem .75rem; border-bottom: 1px solid #363636; background: #202020; font-size: .8rem; }
 
 .note-list { position: relative; height: 0; flex: 1 1 0; min-height: 0; overflow: hidden; }
@@ -136,7 +135,7 @@ button, input, textarea { font: inherit; }
 .note-lock-panel > i { color: #d5b74f; font-size: 1.65rem; }
 .note-lock-panel .braille-spinner { justify-self: center; }
 .note-lock-panel p { margin: 0; color: #999; font-size: .8rem; line-height: 1.55; }
-.note-lock-panel input { min-height: 4rem; padding-left: .55em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 2rem; font-weight: 700; line-height: 1; text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+.note-lock-panel input { min-height: 3rem; padding-left: .55em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1rem; font-weight: 700; line-height: 1; text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
 .note-lock-error { color: #ef9a9a; font-size: .78rem; }
 .note-lock-actions { display: flex; justify-content: flex-end; gap: .5rem; }
 .note-lock-actions .btn { flex: 1; }

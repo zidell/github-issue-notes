@@ -1454,15 +1454,16 @@
               style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
             >
               <div class="state-tabs" role="group" aria-label={$_("m.cd9fe96e05")}>
-                <button class:active={state === 'open'} on:click={() => changeState('open')}>
+                <button class="btn btn-sm" class:active={state === 'open'} on:click={() => changeState('open')}>
                   <i class="bi bi-journal-text" aria-hidden="true"></i> {$_("m.70440046a3")}
                 </button>
-                <button class:active={state === 'closed'} on:click={() => changeState('closed')}>
+                <button class="btn btn-sm" class:active={state === 'closed'} on:click={() => changeState('closed')}>
                   <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.e3bf62bb7f")}
                 </button>
               </div>
               <form class="sidebar-search" on:submit|preventDefault={submitSearch}>
                 <input
+                  class="form-control form-control-sm"
                   type="search"
                   bind:value={query}
                   placeholder={$_("m.55a302a1a9")}
@@ -1474,7 +1475,7 @@
                     <option value={`#${label.name}`}></option>
                   {/each}
                 </datalist>
-                <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
+                <button class="btn btn-sm" disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
               </form>
             </div>
             {#if !loading && visibleIssues.length === 0}
