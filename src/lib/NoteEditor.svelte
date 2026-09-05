@@ -349,6 +349,13 @@
     lockPanelError = '';
   }
 
+  function handleLockPinInput(event) {
+    const digits = event.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 6);
+    event.currentTarget.value = digits;
+    lockPanelPin = digits;
+    lockPanelError = '';
+  }
+
   async function submitLockPanel() {
     const pin = normalizeLockPin(lockPanelPin);
     if (!pin) {
@@ -1331,7 +1338,7 @@
             maxlength="6"
             autocomplete="off"
             bind:value={lockPanelPin}
-            on:input={() => { lockPanelPin = lockPanelPin.replace(/\D/g, '').slice(0, 6); lockPanelError = ''; }}
+            on:input={handleLockPinInput}
             aria-label="6자리 잠금 숫자"
             placeholder="6자리 숫자"
           />
