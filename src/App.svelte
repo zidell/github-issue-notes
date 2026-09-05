@@ -59,6 +59,8 @@
   let totalIssues = 0;
   let error = '';
   let notice = '';
+  let toastMessage = '';
+  let toastTimer;
   let routeStack = [];
   let titleMode = 'first-line';
   let editorFont = 'system';
@@ -216,6 +218,7 @@
 
     return () => {
       clearInterval(backgroundRefreshTimer);
+      clearTimeout(toastTimer);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
       unsubscribe();
@@ -369,6 +372,14 @@
     }
     if (reason?.status === 403) return $_("m.26096781ad");
     return reason?.message || $_("m.285cc7fd9a");
+  }
+
+  function showToast(message) {
+    clearTimeout(toastTimer);
+    toastMessage = message;
+    toastTimer = setTimeout(() => {
+      toastMessage = '';
+    }, 2400);
   }
 
   async function copyMcpText(value, successMessage) {
@@ -945,8 +956,7 @@
   }
 
   function moveIssue(issue, nextState) {
-    const confirmKey = nextState === 'closed' ? 'dynamic.moveToTrashConfirm' : 'dynamic.restoreConfirm';
-    if (!confirm($_(confirmKey, { values: { title: issue.title } }))) return;
+    if (nextState === 'open' && !confirm($_('dynamic.restoreConfirm', { values: { title: issue.title } }))) return;
 
     error = '';
     const removedIndex = issues.findIndex((item) => item.id === issue.id);
@@ -962,9 +972,10 @@
 
     void setIssueState(token, repo, issue.number, nextState)
       .then(() => {
-      notice = nextState === 'closed'
-        ? $_("m.1fe3b7e75f")
-        : $_("m.a480a954e7");
+        notice = nextState === 'closed'
+          ? ''
+          : $_("m.a480a954e7");
+        if (nextState === 'closed') showToast($_("m.1fe3b7e75f"));
       })
       .catch((reason) => {
         if (!issues.some((item) => item.id === issue.id)) {
@@ -1393,6 +1404,9 @@
     class="app-shell"
     class:mobile-detail-active={Boolean(contentRoute)}
   >
+    {#if toastMessage}
+      <div class="app-toast" role="status">{toastMessage}</div>
+    {/if}
     <main class="note-workspace">
       <aside class="note-sidebar">
         <div class="sidebar-heading">
