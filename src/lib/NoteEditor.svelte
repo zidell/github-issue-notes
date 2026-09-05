@@ -66,7 +66,7 @@
 
   const initiallyLocked = isLockedTitle(issue?.title);
   let title = removeLockFromTitle(issue?.title || initialDraft?.title || '');
-  let body = initiallyLocked ? '' : issue?.body || initialDraft?.body || '';
+  let body = initiallyLocked ? issue?.body || '' : issue?.body || initialDraft?.body || '';
   let encryptedBody = initiallyLocked ? issue?.body || '' : '';
   let lockState = initiallyLocked ? 'locked' : 'plain';
   let activeLockPin = '';
@@ -290,7 +290,9 @@
   }
 
   function draftPayload() {
-    const resolvedTitle = titleMode === 'first-line' ? automaticTitle(body) : title.trim();
+    const resolvedTitle = lockState === 'locked'
+      ? title.trim()
+      : titleMode === 'first-line' ? automaticTitle(body) : title.trim();
     return {
       title: lockState === 'plain'
         ? resolvedTitle || $_("m.2b7b05c002")
@@ -307,7 +309,9 @@
   }
 
   function currentNote() {
-    const resolvedTitle = titleMode === 'first-line'
+    const resolvedTitle = lockState === 'locked'
+      ? title.trim()
+      : titleMode === 'first-line'
       ? automaticTitle(body) || (attachments.length ? $_("m.c33437b1cb") : '')
       : title.trim();
     return {
@@ -438,7 +442,7 @@
       }
     } finally {
       activeLockPin = '';
-      body = '';
+      body = encryptedBody;
       lockState = 'locked';
       lockPanelMode = 'unlock';
       lockPanelPin = '';
@@ -614,7 +618,7 @@
       const refreshedLocked = isLockedTitle(refreshed.title);
       title = removeLockFromTitle(refreshed.title || '');
       encryptedBody = refreshedLocked ? refreshed.body || '' : '';
-      body = refreshedLocked ? '' : refreshed.body || '';
+      body = refreshed.body || '';
       lockState = refreshedLocked ? 'locked' : 'plain';
       activeLockPin = '';
       labels = (refreshed.labels || []).map((label) => label.name);
@@ -1210,6 +1214,7 @@
 
   <div
     class="inline-editor-fields"
+    class:is-lock-protected={lockState !== 'plain'}
     style={`--note-font:${fontStack};--note-font-size:${fontSize}px;--note-line-height:${lineHeight}`}
   >
     {#if loadingAttachments || attachments.length || uploading || deletingPath}
@@ -1304,7 +1309,6 @@
       bind:this={bodyInput}
       class="inline-body"
       class:is-dragging-files={draggingFiles}
-      class:is-lock-protected={lockState === 'unlocked'}
       bind:value={body}
       on:input={handleBodyInput}
       on:keydown={handleEditorKeydown}
