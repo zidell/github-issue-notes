@@ -29,6 +29,7 @@
   const BACKGROUND_REFRESH_MS = 60 * 60 * 1000;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const LOCK_SESSION_MS = 60 * 60 * 1000;
+  const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
 
@@ -49,6 +50,7 @@
   let pruningExpiredAttachments = false;
   let state = 'open';
   let query = '';
+  let appliedQuery = '';
   let activeLabel = '';
   let loading = false;
   let loadingMore = false;
@@ -85,7 +87,7 @@
   let lockPin = '';
   let lockSessionTimer;
 
-  $: emptyMessage = query
+  $: emptyMessage = appliedQuery
     ? $_("m.e9cc6d0e9a")
     : state === 'open'
       ? $_("m.f5dd983c9d")
@@ -100,11 +102,12 @@
   $: contentRoutes = routeStack.filter((route) => ['note', 'new'].includes(route.screen));
   $: contentRoute = contentRoutes.at(-1);
   $: isNewRoute = contentRoute?.screen === 'new';
+  $: queryIsLabelFilter = queryMatchesActiveLabel(appliedQuery, activeLabel);
   $: pendingMatchesLabel = !activeLabel || hasIssueLabel(pendingNote, activeLabel);
-  $: visibleIssues = pendingNote && state === 'open' && !query && pendingMatchesLabel
+  $: visibleIssues = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? [pendingNote, ...issues.filter((issue) => issue.number !== pendingNote.number)]
     : issues;
-  $: displayedIssueCount = pendingNote && state === 'open' && !query && pendingMatchesLabel
+  $: displayedIssueCount = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? Math.max(totalIssues, pendingNote.countBaseline + 1)
     : totalIssues;
 
@@ -158,6 +161,15 @@
       const nextLabel = labelFromRoutes(stack);
       routeStack = stack;
       activeLabel = nextLabel;
+      if (previousLabel !== nextLabel) {
+        if (nextLabel) {
+          query = `#${nextLabel}`;
+          appliedQuery = query;
+        } else {
+          if (queryMatchesActiveLabel(query, previousLabel)) query = '';
+          if (queryMatchesActiveLabel(appliedQuery, previousLabel)) appliedQuery = '';
+        }
+      }
       if (wasInSettings && !isInSettings) {
         if (settingsSnapshot) restoreSettingsSnapshot();
         if (appState === 'connecting') appState = 'ready';
@@ -254,6 +266,13 @@
     } catch {
       return route.value;
     }
+  }
+
+  function queryMatchesActiveLabel(queryValue, labelName) {
+    return Boolean(
+      labelName
+      && queryValue.trim().toLocaleLowerCase() === `#${labelName}`.toLocaleLowerCase()
+    );
   }
 
   function persistSettings(normalizedRepo) {
@@ -402,19 +421,20 @@
 
   async function loadIssues(background = false) {
     if (background && loading) return;
-    const requestedQuery = query;
+    const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
+    const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
     if (!background) {
       error = '';
       loading = true;
     }
     try {
-      const result = requestedQuery.trim()
-        ? await searchIssuesPage(token, repo, requestedState, requestedQuery, requestedLabel, 1, Date.now(), issuePageSize)
+      const result = requestedTerm.trim()
+        ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, 1, Date.now(), issuePageSize)
         : await listIssuesPage(token, repo, requestedState, requestedLabel, 1, Date.now(), issuePageSize);
       if (
-        requestedQuery !== query
+        requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
       ) return;
@@ -437,18 +457,19 @@
 
   async function loadMoreIssues() {
     if (loading || loadingMore || !hasMoreIssues) return;
-    const requestedQuery = query;
+    const requestedQuery = appliedQuery;
     const requestedState = state;
     const requestedLabel = activeLabel;
+    const requestedTerm = queryMatchesActiveLabel(requestedQuery, requestedLabel) ? '' : requestedQuery;
     const nextPage = issuePage + 1;
     loadingMore = true;
     error = '';
     try {
-      const result = requestedQuery.trim()
-        ? await searchIssuesPage(token, repo, requestedState, requestedQuery, requestedLabel, nextPage, Date.now(), issuePageSize)
+      const result = requestedTerm.trim()
+        ? await searchIssuesPage(token, repo, requestedState, requestedTerm, requestedLabel, nextPage, Date.now(), issuePageSize)
         : await listIssuesPage(token, repo, requestedState, requestedLabel, nextPage, Date.now(), issuePageSize);
       if (
-        requestedQuery !== query
+        requestedQuery !== appliedQuery
         || requestedState !== state
         || requestedLabel !== activeLabel
       ) return;
@@ -466,15 +487,39 @@
   }
 
   async function submitSearch() {
-    const tagQuery = query.trim().match(/^#(.+)$/)?.[1]?.trim();
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      query = '';
+      appliedQuery = '';
+      if (activeLabel) {
+        clearLabel();
+        return;
+      }
+      await loadIssues();
+      return;
+    }
+
+    const tagQuery = normalizedQuery.match(/^#(.+)$/)?.[1]?.trim();
     if (tagQuery) {
       const exactLabel = repositoryLabels.find(
         (label) => label.name.toLocaleLowerCase() === tagQuery.toLocaleLowerCase()
       );
       if (exactLabel) {
+        query = `#${exactLabel.name}`;
+        appliedQuery = query;
+        if (activeLabel.toLocaleLowerCase() === exactLabel.name.toLocaleLowerCase()) {
+          await loadIssues();
+          return;
+        }
         openLabel(exactLabel.name);
         return;
       }
+    }
+    query = normalizedQuery;
+    appliedQuery = normalizedQuery;
+    if (activeLabel) {
+      clearLabel();
+      return;
     }
     await loadIssues();
   }
@@ -491,6 +536,7 @@
     if (state === nextState) return;
     state = nextState;
     query = '';
+    appliedQuery = '';
     selectedIssue = null;
     const labelWillChange = Boolean(activeLabel);
     if (router.getDepth()) router.navigate('/');
@@ -498,7 +544,8 @@
   }
 
   function handleSidebarScroll(event) {
-    const nextScrollTop = Math.max(0, event.currentTarget.scrollTop);
+    const scrollElement = event.currentTarget;
+    const nextScrollTop = Math.max(0, scrollElement.scrollTop);
     const delta = nextScrollTop - lastSidebarScrollTop;
     const toolsHeight = sidebarToolsElement?.offsetHeight || 0;
 
@@ -513,15 +560,19 @@
       sidebarToolsRevealing = true;
     }
     lastSidebarScrollTop = nextScrollTop;
+
+    const distanceFromBottom = scrollElement.scrollHeight - nextScrollTop - scrollElement.clientHeight;
+    if (distanceFromBottom <= SIDEBAR_LOAD_MORE_THRESHOLD_PX) void loadMoreIssues();
   }
 
   function newNote(initialBody = '', { ignoreRecoveredDraft = true } = {}) {
     const pastedBody = typeof initialBody === 'string' ? initialBody : '';
     error = '';
     const stateChanged = state !== 'open';
-    const hadQuery = Boolean(query.trim());
+    const hadQuery = Boolean(appliedQuery.trim());
     state = 'open';
-    query = '';
+    query = activeLabel ? `#${activeLabel}` : '';
+    appliedQuery = query;
     if (!pendingNote) {
       pendingNote = {
         id: 'local-new-note',
@@ -657,7 +708,8 @@
   function noteCreated(savedIssue) {
     const newNoteIsActive = contentRoute?.screen === 'new';
     error = '';
-    query = '';
+    query = activeLabel ? `#${activeLabel}` : '';
+    appliedQuery = query;
     state = 'open';
     issues = [savedIssue, ...issues.filter((issue) => issue.id !== savedIssue.id)];
     totalIssues = Math.max(totalIssues, (pendingNote?.countBaseline ?? totalIssues) + 1);
@@ -878,7 +930,8 @@
   }
 
   function openLabel(labelName) {
-    query = '';
+    query = `#${labelName}`;
+    appliedQuery = query;
     selectedIssue = null;
     const route = `tag.${encodeURIComponent(labelName)}`;
     if (routeStack.some((item) => item.screen === 'tag')) router.navigate(route);
@@ -1350,7 +1403,7 @@
               </button>
             {/if}
             <div class="sidebar-heading-title">
-              <h1>{activeLabel ? `#${activeLabel}` : state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
+              <h1>{state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
             </div>
           </div>
@@ -1397,24 +1450,7 @@
                   {/each}
                 </datalist>
                 <button disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
-                {#if query}
-                  <button
-                    type="button"
-                    on:click={() => {
-                      query = '';
-                      loadIssues();
-                    }}
-                  ><i class="bi bi-x-lg" aria-hidden="true"></i> {$_("m.719ea396ad")}</button>
-                {/if}
               </form>
-              {#if activeLabel}
-                <div class="active-label-filter">
-                  <span>#{activeLabel}</span>
-                  <button type="button" on:click={clearLabel} aria-label={$_('dynamic.clearFilter', { values: { label: activeLabel } })}>
-                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                  </button>
-                </div>
-              {/if}
             </div>
             {#if !loading && visibleIssues.length === 0}
               <div class="list-status">{emptyMessage}</div>

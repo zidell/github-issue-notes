@@ -79,8 +79,6 @@ button, input, textarea { font: inherit; }
 .sidebar-search input { width: 100%; min-width: 0; padding: .4rem .55rem; border: 1px solid #474747; border-radius: 4px 0 0 4px; outline: none; color: #eee; background: #222; font-size: .85rem; }
 .sidebar-search input:focus { position: relative; border-color: #2563eb; }
 .sidebar-search button { flex: none; margin-left: -1px; padding: .35rem .55rem; font-size: .78rem; }
-.active-label-filter { display: flex; align-items: center; justify-content: space-between; margin-top: .5rem; padding: .3rem .45rem; border: 1px solid #404b68; border-radius: 4px; color: #b9ccff; background: #20283a; font-size: .78rem; }
-.active-label-filter button { padding: 0 .2rem; border: 0; color: #9eafd8; background: transparent; font-size: 1rem; line-height: 1; }
 .sidebar-message { padding: .55rem .75rem; border-bottom: 1px solid #363636; background: #202020; font-size: .8rem; }
 
 .note-list { position: relative; height: 0; flex: 1 1 0; min-height: 0; overflow: hidden; }
