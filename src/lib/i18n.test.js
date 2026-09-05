@@ -18,4 +18,25 @@ describe('i18n', () => {
     setAppLocale('en');
     expect(translate('dynamic.noteCount', { count: 12 })).toBe('12 notes');
   });
+
+  it('모든 지원 언어에 설정 위저드 번역을 제공한다', () => {
+    const expectedTitles = {
+      en: 'Set up Issue Note',
+      ko: 'Issue Note 설정',
+      'zh-CN': '设置 Issue Note',
+      ja: 'Issue Noteのセットアップ',
+      de: 'Issue Note einrichten',
+      fr: 'Configurer Issue Note',
+      it: 'Configura Issue Note'
+    };
+
+    for (const [locale, title] of Object.entries(expectedTitles)) {
+      setAppLocale(locale);
+      expect(translate('setup.wizardTitle')).toBe(title);
+      if (locale !== 'en') {
+        expect(translate('setup.accountDescription')).not.toMatch(/^You need a GitHub account/);
+      }
+    }
+    setAppLocale('en');
+  });
 });
