@@ -61,6 +61,7 @@
   let notice = '';
   let toastMessage = '';
   let toastTimer;
+  let toastSequence = 0;
   let routeStack = [];
   let titleMode = 'first-line';
   let editorFont = 'system';
@@ -376,10 +377,19 @@
 
   function showToast(message) {
     clearTimeout(toastTimer);
+    const sequence = ++toastSequence;
     toastMessage = message;
     toastTimer = setTimeout(() => {
+      if (sequence !== toastSequence) return;
       toastMessage = '';
     }, 2400);
+    return sequence;
+  }
+
+  function hideToast(sequence) {
+    if (sequence !== toastSequence) return;
+    clearTimeout(toastTimer);
+    toastMessage = '';
   }
 
   async function copyMcpText(value, successMessage) {
@@ -959,6 +969,7 @@
     if (nextState === 'open' && !confirm($_('dynamic.restoreConfirm', { values: { title: issue.title } }))) return;
 
     error = '';
+    const deletionToast = nextState === 'closed' ? showToast($_("m.1fe3b7e75f")) : 0;
     const removedIndex = issues.findIndex((item) => item.id === issue.id);
     const wasSelected = selectedIssue?.id === issue.id;
 
@@ -975,9 +986,9 @@
         notice = nextState === 'closed'
           ? ''
           : $_("m.a480a954e7");
-        if (nextState === 'closed') showToast($_("m.1fe3b7e75f"));
       })
       .catch((reason) => {
+        if (deletionToast) hideToast(deletionToast);
         if (!issues.some((item) => item.id === issue.id)) {
           const insertionIndex = removedIndex < 0 ? issues.length : Math.min(removedIndex, issues.length);
           issues = [...issues.slice(0, insertionIndex), issue, ...issues.slice(insertionIndex)];
