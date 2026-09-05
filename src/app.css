@@ -88,6 +88,7 @@ button, input, textarea { font: inherit; }
 .note-list-row { position: relative; width: 100%; display: block; padding: .75rem; border: 0; border-bottom: 1px solid #303030; text-align: left; background: #1b1b1b; }
 .note-list-row:hover { background: #242424; }
 .note-list-row.active { background: #202b40; box-shadow: inset 3px 0 #3b82f6; }
+.note-list-row.is-archived { opacity: .5; }
 .note-row-hit-area { position: absolute; z-index: 1; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; }
 .note-row-hit-area:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
 .note-row-content { position: relative; z-index: 0; pointer-events: none; }

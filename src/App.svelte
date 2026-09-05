@@ -1423,6 +1423,7 @@
               <article
                 class="note-list-row"
                 class:active={selectedIssue?.id === issue.id}
+                class:is-archived={state === 'closed'}
               >
                 <button
                   class="note-row-hit-area"
