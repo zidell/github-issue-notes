@@ -1,6 +1,6 @@
 const LOCK_PREFIX = '🔒';
 const FORMAT_VERSION = 2;
-const APP_PEPPER = 'issue-note-lock::7b1f4e93c8a642d5a0ef36b91472c85d';
+const APP_PEPPER = String(import.meta.env?.VITE_NOTE_LOCK_PEPPER || '').trim();
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const HEADER_BYTES = 1 + SALT_BYTES + IV_BYTES;
@@ -29,9 +29,10 @@ export function removeLockFromTitle(title = '') {
 export async function encryptLockedBody(body, pin, issueNumber) {
   const normalizedPin = requirePin(pin);
   const context = requireIssueNumber(issueNumber);
+  const pepper = requireAppPepper();
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const key = await deriveKey(normalizedPin, context, salt, ['encrypt']);
+  const key = await deriveKey(normalizedPin, context, pepper, salt, ['encrypt']);
   const encrypted = new Uint8Array(await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
@@ -48,6 +49,7 @@ export async function encryptLockedBody(body, pin, issueNumber) {
 export async function decryptLockedBody(body, pin, issueNumber) {
   const normalizedPin = requirePin(pin);
   const context = requireIssueNumber(issueNumber);
+  const pepper = requireAppPepper();
   let packed;
   try {
     packed = fromBase64(String(body ?? ''));
@@ -61,7 +63,7 @@ export async function decryptLockedBody(body, pin, issueNumber) {
     const salt = packed.slice(1, 1 + SALT_BYTES);
     const iv = packed.slice(1 + SALT_BYTES, HEADER_BYTES);
     const ciphertext = packed.slice(HEADER_BYTES);
-    const key = await deriveKey(normalizedPin, context, salt, ['decrypt']);
+    const key = await deriveKey(normalizedPin, context, pepper, salt, ['decrypt']);
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
     return decoder.decode(decrypted);
   } catch {
@@ -81,8 +83,15 @@ function requireIssueNumber(issueNumber) {
   return String(number);
 }
 
-async function deriveKey(pin, issueNumber, salt, usages) {
-  const keyMaterial = `${APP_PEPPER}:${issueNumber}:${pin}`;
+function requireAppPepper() {
+  if (APP_PEPPER.length < 32) {
+    throw new Error('잠금 기능을 사용하려면 VITE_NOTE_LOCK_PEPPER를 32자 이상으로 설정해야 합니다.');
+  }
+  return APP_PEPPER;
+}
+
+async function deriveKey(pin, issueNumber, pepper, salt, usages) {
+  const keyMaterial = `${pepper}:${issueNumber}:${pin}`;
   const material = await crypto.subtle.importKey('raw', encoder.encode(keyMaterial), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: KDF_ITERATIONS },
