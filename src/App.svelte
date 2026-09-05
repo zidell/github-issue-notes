@@ -80,6 +80,8 @@
   let sidebarToolsElement;
   let sidebarToolsOffset = 0;
   let sidebarToolsRevealing = false;
+  let sidebarSearchFocused = false;
+  let sidebarSuggestionIndex = -1;
   let lastSidebarScrollTop = 0;
   let issueRefreshSequence = 0;
   let issueRefreshRequests = {};
@@ -113,6 +115,9 @@
   $: displayedIssueCount = pendingNote && state === 'open' && (!appliedQuery || queryIsLabelFilter) && pendingMatchesLabel
     ? Math.max(totalIssues, pendingNote.countBaseline + 1)
     : totalIssues;
+  $: sidebarLabelSuggestions = repositoryLabels.filter((label) =>
+    label.name.toLocaleLowerCase().includes(query.trim().replace(/^#/, '').toLocaleLowerCase())
+  );
 
   function setLockSession(pin) {
     clearTimeout(lockSessionTimer);
@@ -508,6 +513,8 @@
   }
 
   async function submitSearch() {
+    sidebarSearchFocused = false;
+    sidebarSuggestionIndex = -1;
     const normalizedQuery = query.trim();
     if (!normalizedQuery) {
       query = '';
@@ -543,6 +550,34 @@
       return;
     }
     await loadIssues();
+  }
+
+  function selectSidebarLabel(label) {
+    query = `#${label.name}`;
+    sidebarSearchFocused = false;
+    sidebarSuggestionIndex = -1;
+  }
+
+  function handleSidebarSearchKeydown(event) {
+    if (event.key === 'Escape') {
+      sidebarSearchFocused = false;
+      sidebarSuggestionIndex = -1;
+      return;
+    }
+    if (!sidebarLabelSuggestions.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    if (event.key === 'Enter' && sidebarSuggestionIndex < 0) return;
+    event.preventDefault();
+    if (event.key === 'ArrowDown') {
+      sidebarSearchFocused = true;
+      sidebarSuggestionIndex = (sidebarSuggestionIndex + 1) % sidebarLabelSuggestions.length;
+    } else if (event.key === 'ArrowUp') {
+      sidebarSearchFocused = true;
+      sidebarSuggestionIndex = sidebarSuggestionIndex <= 0
+        ? sidebarLabelSuggestions.length - 1
+        : sidebarSuggestionIndex - 1;
+    } else {
+      selectSidebarLabel(sidebarLabelSuggestions[sidebarSuggestionIndex]);
+    }
   }
 
   async function loadRepositoryLabels() {
@@ -1398,6 +1433,16 @@
                 ? topRoute?.screen === 'settings' ? $_("m.984f7f9989") : $_("m.7bf98200dd")
                 : topRoute?.screen === 'settings' ? $_("m.913aba9f96") : $_("m.9151e7b39d")}
             </button>
+            {#if topRoute?.screen !== 'settings'}
+              <div class="text-center mt-3">
+                <a
+                  class="small text-secondary"
+                  href="https://github.com/zidell/github-issue-notes"
+                  target={newContextTarget}
+                  rel="noreferrer"
+                ><i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}</a>
+              </div>
+            {/if}
           </form>
 
           {#if localStorage.getItem(STORAGE_KEY)}
@@ -1465,16 +1510,32 @@
                 <input
                   class="form-control form-control-sm"
                   type="search"
+                  role="combobox"
                   bind:value={query}
                   placeholder={$_("m.55a302a1a9")}
                   aria-label={$_("m.2bca6e4c82")}
-                  list="sidebar-label-suggestions"
+                  aria-autocomplete="list"
+                  aria-controls="sidebar-label-suggestions"
+                  aria-expanded={sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
+                  on:focus={() => sidebarSearchFocused = true}
+                  on:input={() => sidebarSuggestionIndex = -1}
+                  on:keydown={handleSidebarSearchKeydown}
+                  on:blur={() => sidebarSearchFocused = false}
                 />
-                <datalist id="sidebar-label-suggestions">
-                  {#each repositoryLabels as label (label.id || label.name)}
-                    <option value={`#${label.name}`}></option>
-                  {/each}
-                </datalist>
+                {#if sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
+                  <div class="sidebar-label-suggestions" id="sidebar-label-suggestions" role="listbox">
+                    {#each sidebarLabelSuggestions as label, index (label.id || label.name)}
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={sidebarSuggestionIndex === index}
+                        class:active={sidebarSuggestionIndex === index}
+                        on:mousedown|preventDefault
+                        on:click={() => selectSidebarLabel(label)}
+                      >#{label.name}</button>
+                    {/each}
+                  </div>
+                {/if}
                 <button class="btn btn-sm" disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
               </form>
             </div>

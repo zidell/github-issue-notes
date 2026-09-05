@@ -55,7 +55,7 @@ button, input, textarea { font: inherit; }
 .mcp-prompt { min-height: 8rem; resize: vertical; line-height: 1.55; }
 
 .app-shell { height: 100%; overflow: hidden; background: #171717; }
-.app-toast { position: fixed; z-index: 1100; top: calc(env(safe-area-inset-top, 0px) + 1rem); left: 50%; padding: .55rem .85rem; border: 1px solid #454545; border-radius: 5px; color: #eee; background: #292929; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); font-size: .85rem; pointer-events: none; transform: translateX(-50%); }
+.app-toast { position: fixed; z-index: 1100; top: 50%; left: 50%; padding: .55rem .85rem; border: 1px solid #454545; border-radius: 5px; color: #eee; background: #292929; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); font-size: .85rem; pointer-events: none; transform: translate(-50%, -50%); }
 .avatar { width: 100%; height: 100%; border-radius: 50%; }
 
 .note-workspace { position: relative; height: 100%; display: grid; grid-template-columns: 340px minmax(0, 1fr); overflow: hidden; }
@@ -75,10 +75,13 @@ button, input, textarea { font: inherit; }
 .state-tabs button:first-child { border-radius: 4px 0 0 4px; }
 .state-tabs button:last-child { margin-left: -1px; border-radius: 0 4px 4px 0; }
 .state-tabs button.active { position: relative; color: #fff; border-color: #666; background: #505050; }
-.sidebar-search { display: flex; }
+.sidebar-search { position: relative; display: flex; }
 .sidebar-search input { width: 100%; min-width: 0; border: 1px solid #474747; border-radius: 4px 0 0 4px; outline: none; color: #eee; background: #222; }
 .sidebar-search input:focus { position: relative; border-color: #2563eb; }
 .sidebar-search button { flex: none; margin-left: -1px; }
+.sidebar-label-suggestions { position: absolute; z-index: 5; top: calc(100% + .25rem); right: 0; left: 0; max-height: 240px; padding: .25rem; overflow-y: auto; border: 1px solid #444; border-radius: 4px; background: #242424; box-shadow: 0 8px 20px rgba(0, 0, 0, .35); }
+.sidebar-label-suggestions button { width: 100%; display: block; margin: 0; padding: .4rem .55rem; border: 0; border-radius: 3px; color: #ccc; background: transparent; font-size: .8rem; text-align: left; }
+.sidebar-label-suggestions button:hover, .sidebar-label-suggestions button.active { color: #fff; background: #343b4d; }
 .sidebar-message { padding: .55rem .75rem; border-bottom: 1px solid #363636; background: #202020; font-size: .8rem; }
 
 .note-list { position: relative; height: 0; flex: 1 1 0; min-height: 0; overflow: hidden; }

@@ -54,8 +54,8 @@ const errors = {
   ko: { githubRequest: 'GitHub 요청에 실패했습니다.', repositoryFormat: '저장소를 owner/repository 형식으로 입력해주세요.', issueNumberRequired: '첨부하기 전에 이슈 번호가 필요합니다.', attachmentLoad: '첨부 파일을 불러오지 못했습니다.' }
 };
 const meta = {
-  en: { description: 'A serverless personal notes app backed by GitHub Issues' },
-  ko: { description: 'GitHub Issues를 저장소로 사용하는 서버 없는 개인 노트 앱' }
+  en: { description: 'A serverless personal notes app backed by GitHub Issues', sourceCode: 'View source code on GitHub' },
+  ko: { description: 'GitHub Issues를 저장소로 사용하는 서버 없는 개인 노트 앱', sourceCode: 'GitHub에서 소스 코드 보기' }
 };
 const settings = {
   en: { language: 'Language', patReplacementPlaceholder: 'Enter only to replace the saved PAT' },
