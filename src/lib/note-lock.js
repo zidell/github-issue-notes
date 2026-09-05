@@ -45,9 +45,16 @@ export async function encryptLockedBody(body, pin) {
 
 export async function decryptLockedBody(body, pin) {
   const normalizedPin = requirePin(pin);
+  let packed;
   try {
-    const packed = fromBase64(String(body ?? ''));
-    if (packed[0] !== FORMAT_VERSION || packed.length <= HEADER_BYTES) throw new Error();
+    packed = fromBase64(String(body ?? ''));
+  } catch {
+    throw new Error('잠금 데이터 형식을 읽을 수 없습니다.');
+  }
+  if (packed[0] !== FORMAT_VERSION || packed.length <= HEADER_BYTES) {
+    throw new Error('지원하지 않는 잠금 데이터입니다.');
+  }
+  try {
     const salt = packed.slice(1, 1 + SALT_BYTES);
     const iv = packed.slice(1 + SALT_BYTES, HEADER_BYTES);
     const ciphertext = packed.slice(HEADER_BYTES);

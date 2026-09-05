@@ -359,15 +359,7 @@
     lockPanelError = '';
     try {
       if (lockPanelMode === 'lock') {
-        activeLockPin = pin;
-        onSetLockSession(pin);
-        encryptedBody = await encryptLockedBody(body, pin);
-        lockState = 'unlocked';
-        lockPanelMode = '';
-        removeLocalDraft();
-        changed();
-        clearTimeout(remoteTimer);
-        await saveRemote(true);
+        await lockNote(pin);
       } else {
         await revealLockedNote(pin);
       }
@@ -376,6 +368,36 @@
     } finally {
       lockPanelBusy = false;
     }
+  }
+
+  async function requestLock() {
+    const sessionPin = normalizeLockPin(lockPin);
+    if (!sessionPin) {
+      openLockPanel('lock');
+      return;
+    }
+    lockPanelBusy = true;
+    lockPanelError = '';
+    try {
+      await lockNote(sessionPin);
+    } catch (reason) {
+      lockPanelMode = 'lock';
+      lockPanelError = reason?.message || '잠금을 처리하지 못했습니다.';
+    } finally {
+      lockPanelBusy = false;
+    }
+  }
+
+  async function lockNote(pin) {
+    activeLockPin = pin;
+    onSetLockSession(pin);
+    encryptedBody = await encryptLockedBody(body, pin);
+    lockState = 'unlocked';
+    lockPanelMode = '';
+    removeLocalDraft();
+    changed();
+    clearTimeout(remoteTimer);
+    await saveRemote(true);
   }
 
   async function revealLockedNote(pin, automatic = false) {
@@ -1150,7 +1172,7 @@
             <button
               type="button"
               class="dropdown-item"
-              on:click={() => lockState === 'plain' ? openLockPanel('lock') : removeLock()}
+              on:click={() => lockState === 'plain' ? requestLock() : removeLock()}
             >
               <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
               {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
@@ -1304,7 +1326,7 @@
           <input
             id={`note-lock-pin-${editorId}`}
             class="form-control"
-            type="password"
+            type="text"
             inputmode="numeric"
             pattern="[0-9]{6}"
             maxlength="6"
