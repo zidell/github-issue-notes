@@ -135,7 +135,7 @@ button, input, textarea { font: inherit; }
 .note-lock-panel > i { color: #d5b74f; font-size: 1.65rem; }
 .note-lock-panel .braille-spinner { justify-self: center; }
 .note-lock-panel p { margin: 0; color: #999; font-size: .8rem; line-height: 1.55; }
-.note-lock-panel input { min-height: 3rem; padding-left: .55em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1rem; font-weight: 700; line-height: 1; text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+.note-lock-panel input { min-height: 3rem; padding-left: .55em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.3rem; font-weight: 700; line-height: 1; text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
 .note-lock-error { color: #ef9a9a; font-size: .78rem; }
 .note-lock-actions { display: flex; justify-content: flex-end; gap: .5rem; }
 .note-lock-actions .btn { flex: 1; }

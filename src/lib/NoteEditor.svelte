@@ -360,9 +360,11 @@
     event.currentTarget.value = digits;
     lockPanelPin = digits;
     lockPanelError = '';
+    if (digits.length === 6 && lockPanelMode !== 'lock' && !lockPanelBusy) void submitLockPanel();
   }
 
   async function submitLockPanel() {
+    if (lockPanelBusy) return;
     const pin = normalizeLockPin(lockPanelPin);
     if (!pin) {
       lockPanelError = '6자리 숫자를 입력해 주세요.';
@@ -1372,15 +1374,16 @@
               aria-label="6자리 잠금 숫자"
               placeholder="000000"
             />
+            <input type="submit" hidden disabled={lockPanelBusy || lockPanelPin.length !== 6} />
             {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
-            <div class="note-lock-actions">
-              {#if lockPanelMode === 'lock'}
+            {#if lockPanelMode === 'lock'}
+              <div class="note-lock-actions">
                 <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
-              {/if}
-              <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
-                {lockPanelBusy ? '처리 중…' : lockPanelMode === 'lock' ? '잠그기' : '열기'}
-              </button>
-            </div>
+                <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
+                  {lockPanelBusy ? '처리 중…' : '잠그기'}
+                </button>
+              </div>
+            {/if}
           {/if}
         </form>
       </div>
