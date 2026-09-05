@@ -68,10 +68,24 @@ const settings = {
 };
 const setup = {
   en: {
-    confirmPatStorage: 'Save this PAT in this browser?\n\nIf you save it, the app can reconnect without asking for the PAT every time. Anyone who can use this browser profile may be able to use the PAT, so never enable this option on a shared or public device.\n\nIs this your personal device, and do you want to continue? Select Cancel to leave everything unchanged. You can then clear the checkbox and connect without saving the PAT.'
+    confirmPatStorage: 'Save this PAT in this browser?\n\nIf you save it, the app can reconnect without asking for the PAT every time. Anyone who can use this browser profile may be able to use the PAT, so never enable this option on a shared or public device.\n\nIs this your personal device, and do you want to continue? Select Cancel to leave everything unchanged. You can then clear the checkbox and connect without saving the PAT.',
+    wizardTitle: 'Set up Issue Note', stepCount: 'Step {step} of {total}', progressLabel: 'Setup progress',
+    introTitle: 'Keep personal notes in your own GitHub repository', introDescription: 'Issue Note turns GitHub Issues into a simple notes app. Your notes go directly between this browser and GitHub without passing through an app server.',
+    introFeatureStorage: 'Each note is stored as a GitHub Issue.', introFeatureTags: 'Labels become tags, and closed issues become trash.', introFeaturePrivacy: 'A private repository keeps your personal notes from being public.',
+    accountTitle: 'First, prepare a GitHub account', accountDescription: 'You need a GitHub account to create and store notes. If you do not have one yet, create it from the link below.', createAccount: 'Create a GitHub account',
+    repositoryTitle: 'Create a private notes repository', repositoryDescription: 'Create a new repository on GitHub and make sure its visibility is Private. Then paste its address below.', createRepository: 'Create a private repository on GitHub', repositoryAddress: 'Repository address', repositoryAddressHelp: 'You can enter a GitHub URL or owner/repository.',
+    patTitle: 'Create and enter a PAT', patDescription: 'Issue Note needs a fine-grained personal access token to read and write notes in this repository.', createPat: 'Create a PAT for this repository', patHelp: 'Allow Issues read/write access. Also allow Contents read/write access to use attachments.', rememberPat: 'Remember PAT in this browser',
+    previous: 'Back', start: 'Start setup', haveAccount: 'I have an account', repositoryDone: 'Repository address entered', finish: 'Complete setup', connecting: 'Connecting…'
   },
   ko: {
-    confirmPatStorage: '이 브라우저에 PAT를 저장할까요?\n\n저장하면 다음부터 PAT를 다시 입력하지 않아도 바로 연결할 수 있습니다. 다만 이 브라우저 프로필에 접근할 수 있는 사람은 PAT를 사용할 수 있으므로, 공용 또는 공유 디바이스에서는 절대로 이 옵션을 켜면 안 됩니다.\n\n이 디바이스는 개인용이며 계속 진행할까요? 취소를 누르면 아무것도 변경하거나 연결하지 않습니다. 체크를 해제한 뒤 PAT를 저장하지 않고 연결할 수 있습니다.'
+    confirmPatStorage: '이 브라우저에 PAT를 저장할까요?\n\n저장하면 다음부터 PAT를 다시 입력하지 않아도 바로 연결할 수 있습니다. 다만 이 브라우저 프로필에 접근할 수 있는 사람은 PAT를 사용할 수 있으므로, 공용 또는 공유 디바이스에서는 절대로 이 옵션을 켜면 안 됩니다.\n\n이 디바이스는 개인용이며 계속 진행할까요? 취소를 누르면 아무것도 변경하거나 연결하지 않습니다. 체크를 해제한 뒤 PAT를 저장하지 않고 연결할 수 있습니다.',
+    wizardTitle: 'Issue Note 설정', stepCount: '{total}단계 중 {step}단계', progressLabel: '설정 진행 상황',
+    introTitle: '내 GitHub 저장소를 개인 노트 공간으로', introDescription: 'Issue Note는 GitHub Issues를 간편한 노트 앱으로 바꿔줍니다. 노트는 별도 앱 서버를 거치지 않고 이 브라우저와 GitHub 사이에서 직접 오갑니다.',
+    introFeatureStorage: '노트 하나가 GitHub Issue 하나로 저장됩니다.', introFeatureTags: '라벨은 태그로, 닫힌 이슈는 휴지통으로 사용합니다.', introFeaturePrivacy: '비공개 저장소를 사용해 개인 노트가 공개되지 않게 합니다.',
+    accountTitle: '먼저 GitHub 계정을 준비하세요', accountDescription: '노트를 만들고 저장하려면 GitHub 계정이 필요합니다. 아직 계정이 없다면 아래 링크에서 먼저 만들어주세요.', createAccount: 'GitHub 계정 만들기',
+    repositoryTitle: '비공개 노트 저장소를 만드세요', repositoryDescription: 'GitHub에서 새 저장소를 만들고 공개 범위를 반드시 Private으로 설정하세요. 만든 뒤 저장소 주소를 아래에 붙여 넣습니다.', createRepository: 'GitHub에서 비공개 저장소 만들기', repositoryAddress: '저장소 주소', repositoryAddressHelp: 'GitHub 주소 또는 owner/repository 형식으로 입력할 수 있습니다.',
+    patTitle: 'PAT를 발급하고 입력하세요', patDescription: 'Issue Note가 이 저장소의 노트를 읽고 쓰려면 Fine-grained personal access token이 필요합니다.', createPat: '이 저장소용 PAT 발급하기', patHelp: 'Issues 읽기·쓰기를 허용하세요. 첨부파일을 사용하려면 Contents 읽기·쓰기도 허용해야 합니다.', rememberPat: '이 브라우저에 PAT 기억하기',
+    previous: '이전', start: '설정 시작', haveAccount: '계정이 있습니다', repositoryDone: '주소 입력 완료', finish: '설정 완료', connecting: '연결 중…'
   }
 };
 

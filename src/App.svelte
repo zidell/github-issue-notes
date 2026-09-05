@@ -4,6 +4,7 @@
   import BrailleSpinner from './lib/BrailleSpinner.svelte';
   import { externalLinkTarget } from './lib/external-links.js';
   import NoteEditor from './lib/NoteEditor.svelte';
+  import SetupWizard from './lib/SetupWizard.svelte';
   import TagSettings from './lib/TagSettings.svelte';
   import { tagColorForName } from './lib/colors.js';
   import { _, locale as activeLocale } from 'svelte-i18n';
@@ -94,7 +95,6 @@
   let issueRefreshRequests = {};
   let refreshingIssueNumber = null;
   let pendingRouteTransition = null;
-  let tokenInput;
   let hasConfirmedPatStorage = false;
   let lockPin = '';
   let lockSessionTimer;
@@ -463,7 +463,7 @@
       if (!confirm($_('setup.confirmPatStorage'))) return;
       hasConfirmedPatStorage = true;
     }
-    const replacementToken = normalizeToken(tokenInput?.value || tokenInputValue);
+    const replacementToken = normalizeToken(tokenInputValue);
     const requestedToken = replacementToken || (fromSettings ? settingsSnapshot.token : token);
     const requestedRepo = repo;
     error = '';
@@ -1116,7 +1116,7 @@
     if (!settingsSnapshot) return true;
     const requestedRepo = repositoryName(repo)?.fullName || repo.trim();
     const savedRepo = repositoryName(settingsSnapshot.repo)?.fullName || settingsSnapshot.repo.trim();
-    return Boolean(normalizeToken(tokenInput?.value || tokenInputValue))
+    return Boolean(normalizeToken(tokenInputValue))
       || requestedRepo.toLocaleLowerCase() !== savedRepo.toLocaleLowerCase();
   }
 
@@ -1353,33 +1353,32 @@
     </span>
   </main>
 {:else}
-  {#if appState === 'setup' || appState === 'connecting' || topRoute?.screen === 'settings'}
-  <main
-    class="setup-shell container py-4 py-md-5"
-    class:settings-overlay={topRoute?.screen === 'settings'}
-  >
+  {#if appState === 'setup' || (appState === 'connecting' && topRoute?.screen !== 'settings')}
+    <SetupWizard
+      bind:repo
+      bind:tokenInputValue
+      bind:rememberToken
+      busy={appState === 'connecting'}
+      {error}
+      {patCreationUrl}
+      onConnect={() => connect(true)}
+    />
+  {/if}
+  {#if topRoute?.screen === 'settings'}
+  <main class="setup-shell settings-overlay container py-4 py-md-5">
     <section class="setup-card card border-0 shadow-sm mx-auto overflow-hidden">
       <div class="row g-0">
         <div class="col-12 bg-white p-4 p-md-5">
           <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
             <div>
-              <h2 class="h4 fw-bold mb-2">
-                {topRoute?.screen === 'settings' ? $_("m.c7f73bb54d") : $_("m.3fc1eae89b")}
-              </h2>
-              {#if topRoute?.screen !== 'settings'}
-                <p class="text-secondary mb-0">
-                  {$_("m.5353b36687")}
-                </p>
-              {/if}
+              <h2 class="h4 fw-bold mb-2">{$_("m.c7f73bb54d")}</h2>
             </div>
-            {#if topRoute?.screen === 'settings'}
-              <button
-                class="btn btn-sm btn-outline-secondary flex-shrink-0"
-                aria-label={$_("m.6bf9c432ba")}
-                disabled={appState === 'connecting'}
-                on:click={closeSettings}
-              ><i class="bi bi-x-lg" aria-hidden="true"></i> {$_("m.bbfa773e5a")}</button>
-            {/if}
+            <button
+              class="btn btn-sm btn-outline-secondary flex-shrink-0"
+              aria-label={$_("m.6bf9c432ba")}
+              disabled={appState === 'connecting'}
+              on:click={closeSettings}
+            ><i class="bi bi-x-lg" aria-hidden="true"></i> {$_("m.bbfa773e5a")}</button>
           </div>
 
           {#if error}
@@ -1390,142 +1389,7 @@
           {/if}
 
           <form on:submit|preventDefault={saveConfiguration}>
-            {#if topRoute?.screen !== 'settings'}
-            <div class="mb-3">
-              <label for="repo" class="form-label fw-semibold">{$_("m.4fb2726ea2")}</label>
-              <input
-                id="repo"
-                class="form-control form-control-lg"
-                bind:value={repo}
-                placeholder="owner/repository"
-                autocomplete="off"
-                required
-              />
-              <div class="form-text text-warning">
-                <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                {$_("m.8aee94f673")}
-              </div>
-            </div>
-
-            <details class="pat-guide mb-3">
-              <summary class="d-flex align-items-center justify-content-between gap-3">
-                <span>
-                  <strong>{$_("m.5b39a43d96")}</strong>
-                  <small class="d-block text-secondary mt-1">{$_("m.ba93cbcae9")}</small>
-                </span>
-                <span class="guide-chevron" aria-hidden="true">⌄</span>
-              </summary>
-              <div class="pat-guide-body border-top">
-                <ol class="pat-steps mb-3">
-                  <li>
-                    <strong>{$_("m.9427a3c386")}</strong>
-                    <span>{$_("m.3a6af7cffb")}</span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.cd2ebdde1e")}</strong>
-                    <span>{$_("m.1e1d9278a9")}</span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.7cbd5de99f")}</strong>
-                    <span>{$_("m.173f95f145")}</span>
-                  </li>
-                </ol>
-                <a class="btn btn-outline-primary w-100" href="https://github.com/new" target={newContextTarget} rel="noreferrer">
-                  <i class="bi bi-github" aria-hidden="true"></i> {$_("m.ca57d50f39")}
-                </a>
-              </div>
-            </details>
-
-            <div class="mb-3">
-              <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
-              <input
-                bind:this={tokenInput}
-                id="token"
-                type="password"
-                class="form-control form-control-lg font-monospace"
-                bind:value={tokenInputValue}
-                placeholder={topRoute?.screen === 'settings' ? $_('settings.patReplacementPlaceholder') : 'github_pat_...'}
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="none"
-                inputmode="text"
-                spellcheck="false"
-                required={topRoute?.screen !== 'settings'}
-              />
-              <div class="form-text">
-                {$_("m.4abc5f6e21")}
-              </div>
-            </div>
-
-            <details class="pat-guide mb-4">
-              <summary class="d-flex align-items-center justify-content-between gap-3">
-                <span>
-                  <strong>{$_("m.21cbbd1140")}</strong>
-                  <small class="d-block text-secondary mt-1">{$_("m.d04fed6bcf")}</small>
-                </span>
-                <span class="guide-chevron" aria-hidden="true">⌄</span>
-              </summary>
-              <div class="pat-guide-body border-top">
-                <ol class="pat-steps mb-4">
-                  <li>
-                    <strong>{$_("m.db62fae7da")}</strong>
-                    <span>{$_("m.0b0c013e12")}</span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.b96aa5e1b1")}</strong>
-                    <span>
-                      {guideRepository
-                        ? $_('dynamic.selectOwner', { values: { owner: guideRepository.owner } })
-                        : $_("m.29fa6a570b")}
-                    </span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.3325d60301")}</strong>
-                    <span>
-                      {guideRepository
-                        ? $_('dynamic.selectRepository', { values: { repo: guideRepository.fullName } })
-                        : $_("m.d1b62c70da")}
-                    </span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.5703d9fc46")}</strong>
-                    <span>{$_("m.04228b3615")}</span>
-                  </li>
-                  <li>
-                    <strong>{$_("m.3561bf447a")}</strong>
-                    <span>{$_("m.070e34fd3a")}</span>
-                  </li>
-                </ol>
-                <a
-                  class="btn btn-outline-primary w-100"
-                  href={patCreationUrl}
-                  target={newContextTarget}
-                  rel="noreferrer"
-                >
-                  <i class="bi bi-key" aria-hidden="true"></i>
-                  {guideRepository
-                    ? $_('dynamic.createPat', { values: { name: guideRepository.name } })
-                    : $_("m.619a5ff1e5")}
-                </a>
-                <p class="small text-secondary mt-2 mb-0">
-                  {$_("m.6ae25506ba")}
-                </p>
-              </div>
-            </details>
-
-            <div class="form-check mb-4">
-              <input
-                id="remember"
-                class="form-check-input"
-                type="checkbox"
-                bind:checked={rememberToken}
-              />
-              <label class="form-check-label" for="remember">{$_("m.75912b5db6")}</label>
-            </div>
-            {/if}
-
-            {#if topRoute?.screen === 'settings'}
-              <fieldset class="editor-settings mb-4">
+            <fieldset class="editor-settings mb-4">
               <legend>{$_("m.cf8e8136d8")}</legend>
               <div class="mb-3">
                 <label class="form-label" for="language">{$_('settings.language')}</label>
@@ -1661,27 +1525,11 @@
                   ><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {$_("m.6b45c11893")}</a>
                 </div>
               </details>
-            {/if}
 
             <button class="btn btn-primary btn-lg w-100" disabled={appState === 'connecting'}>
-              <i
-                class={`bi ${topRoute?.screen === 'settings' ? 'bi-check-lg' : 'bi-link-45deg'}`}
-                aria-hidden="true"
-              ></i>
-              {appState === 'connecting'
-                ? topRoute?.screen === 'settings' ? $_("m.984f7f9989") : $_("m.7bf98200dd")
-                : topRoute?.screen === 'settings' ? $_("m.913aba9f96") : $_("m.9151e7b39d")}
+              <i class="bi bi-check-lg" aria-hidden="true"></i>
+              {appState === 'connecting' ? $_("m.984f7f9989") : $_("m.913aba9f96")}
             </button>
-            {#if topRoute?.screen !== 'settings'}
-              <div class="text-center mt-3">
-                <a
-                  class="small text-secondary"
-                  href="https://github.com/zidell/github-issue-notes"
-                  target={newContextTarget}
-                  rel="noreferrer"
-                ><i class="bi bi-github me-1" aria-hidden="true"></i>{$_('meta.sourceCode')}</a>
-              </div>
-            {/if}
           </form>
 
           {#if localStorage.getItem(STORAGE_KEY)}
