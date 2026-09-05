@@ -1179,7 +1179,6 @@
         class="btn btn-outline-secondary"
         type="button"
         data-bs-toggle="dropdown"
-        data-bs-auto-close="outside"
         aria-expanded="false"
         aria-label={$_("m.a9b795bbb6")}
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
