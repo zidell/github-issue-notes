@@ -1365,7 +1365,7 @@
               bind:value={lockPanelPin}
               on:input={handleLockPinInput}
               aria-label="6자리 잠금 숫자"
-              placeholder="6자리 숫자"
+              placeholder="000000"
             />
             {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
             <div class="note-lock-actions">
