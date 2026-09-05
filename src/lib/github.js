@@ -74,6 +74,11 @@ function issueOnly(items) {
   return items.filter((item) => !item.pull_request);
 }
 
+function sortIssuesForState(items, state) {
+  if (state !== 'closed') return items;
+  return [...items].sort((a, b) => String(b.closed_at || '').localeCompare(String(a.closed_at || '')));
+}
+
 export async function verifyConnection(token, repoInput) {
   const repo = normalizeRepo(repoInput);
   const user = await request('/user', token);
@@ -132,7 +137,7 @@ export async function searchIssuesPage(token, repoInput, state, term, label = ''
     token
   );
   return {
-    items: issueOnly(data.items),
+    items: sortIssuesForState(issueOnly(data.items), state),
     hasMore: page * pageSize < Math.min(Number(data.total_count) || 0, 1000),
     totalCount: Number(data.total_count) || 0
   };

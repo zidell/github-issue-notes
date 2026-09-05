@@ -98,8 +98,12 @@ describe('GitHub API client', () => {
 
   it('닫힌 이슈는 최근 30일 이내만 검색한다', async () => {
     fetch.mockResolvedValueOnce(jsonResponse({
-      total_count: 1,
-      items: [{ id: 1, number: 10, title: '삭제한 노트' }]
+      total_count: 3,
+      items: [
+        { id: 1, number: 10, title: '먼저 삭제한 노트', closed_at: '2026-09-04T10:00:00Z' },
+        { id: 2, number: 11, title: '최근 삭제한 노트', closed_at: '2026-09-04T11:00:00Z' },
+        { id: 3, number: 12, title: 'PR', closed_at: '2026-09-04T12:00:00Z', pull_request: {} }
+      ]
     }));
 
     const result = await listIssuesPage(
@@ -113,9 +117,12 @@ describe('GitHub API client', () => {
     const url = new URL(fetch.mock.calls[0][0]);
 
     expect(result).toEqual({
-      items: [{ id: 1, number: 10, title: '삭제한 노트' }],
+      items: [
+        { id: 2, number: 11, title: '최근 삭제한 노트', closed_at: '2026-09-04T11:00:00Z' },
+        { id: 1, number: 10, title: '먼저 삭제한 노트', closed_at: '2026-09-04T10:00:00Z' }
+      ],
       hasMore: false,
-      totalCount: 1
+      totalCount: 3
     });
     expect(url.pathname).toBe('/search/issues');
     expect(url.searchParams.get('q')).toBe(

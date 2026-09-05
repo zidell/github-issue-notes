@@ -1342,6 +1342,10 @@
       on:drop={handleDrop}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
       aria-label={$_("m.6aa90334da")}
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      spellcheck="false"
       readonly={archived || lockState === 'locked'}
     ></textarea>
     {#if lockState === 'locked' || lockPanelMode}
