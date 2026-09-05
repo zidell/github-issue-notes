@@ -1139,9 +1139,11 @@
               <h2 class="h4 fw-bold mb-2">
                 {topRoute?.screen === 'settings' ? $_("m.c7f73bb54d") : $_("m.3fc1eae89b")}
               </h2>
-              <p class="text-secondary mb-0">
-                {$_("m.5353b36687")}
-              </p>
+              {#if topRoute?.screen !== 'settings'}
+                <p class="text-secondary mb-0">
+                  {$_("m.5353b36687")}
+                </p>
+              {/if}
             </div>
             {#if topRoute?.screen === 'settings'}
               <button
@@ -1161,6 +1163,7 @@
           {/if}
 
           <form on:submit|preventDefault={saveConfiguration}>
+            {#if topRoute?.screen !== 'settings'}
             <div class="mb-3">
               <label for="repo" class="form-label fw-semibold">{$_("m.4fb2726ea2")}</label>
               <input
@@ -1177,36 +1180,34 @@
               </div>
             </div>
 
-            {#if topRoute?.screen !== 'settings'}
-              <details class="pat-guide mb-3">
-                <summary class="d-flex align-items-center justify-content-between gap-3">
-                  <span>
-                    <strong>{$_("m.5b39a43d96")}</strong>
-                    <small class="d-block text-secondary mt-1">{$_("m.ba93cbcae9")}</small>
-                  </span>
-                  <span class="guide-chevron" aria-hidden="true">⌄</span>
-                </summary>
-                <div class="pat-guide-body border-top">
-                  <ol class="pat-steps mb-3">
-                    <li>
-                      <strong>{$_("m.9427a3c386")}</strong>
-                      <span>{$_("m.3a6af7cffb")}</span>
-                    </li>
-                    <li>
-                      <strong>{$_("m.cd2ebdde1e")}</strong>
-                      <span>{$_("m.1e1d9278a9")}</span>
-                    </li>
-                    <li>
-                      <strong>{$_("m.7cbd5de99f")}</strong>
-                      <span>{$_("m.173f95f145")}</span>
-                    </li>
-                  </ol>
-                  <a class="btn btn-outline-primary w-100" href="https://github.com/new" target={newContextTarget} rel="noreferrer">
-                    <i class="bi bi-github" aria-hidden="true"></i> {$_("m.ca57d50f39")}
-                  </a>
-                </div>
-              </details>
-            {/if}
+            <details class="pat-guide mb-3">
+              <summary class="d-flex align-items-center justify-content-between gap-3">
+                <span>
+                  <strong>{$_("m.5b39a43d96")}</strong>
+                  <small class="d-block text-secondary mt-1">{$_("m.ba93cbcae9")}</small>
+                </span>
+                <span class="guide-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div class="pat-guide-body border-top">
+                <ol class="pat-steps mb-3">
+                  <li>
+                    <strong>{$_("m.9427a3c386")}</strong>
+                    <span>{$_("m.3a6af7cffb")}</span>
+                  </li>
+                  <li>
+                    <strong>{$_("m.cd2ebdde1e")}</strong>
+                    <span>{$_("m.1e1d9278a9")}</span>
+                  </li>
+                  <li>
+                    <strong>{$_("m.7cbd5de99f")}</strong>
+                    <span>{$_("m.173f95f145")}</span>
+                  </li>
+                </ol>
+                <a class="btn btn-outline-primary w-100" href="https://github.com/new" target={newContextTarget} rel="noreferrer">
+                  <i class="bi bi-github" aria-hidden="true"></i> {$_("m.ca57d50f39")}
+                </a>
+              </div>
+            </details>
 
             <div class="mb-3">
               <label for="token" class="form-label fw-semibold">Fine-grained PAT</label>
@@ -1294,8 +1295,10 @@
               />
               <label class="form-check-label" for="remember">{$_("m.75912b5db6")}</label>
             </div>
+            {/if}
 
-            <fieldset class="editor-settings mb-4">
+            {#if topRoute?.screen === 'settings'}
+              <fieldset class="editor-settings mb-4">
               <legend>{$_("m.cf8e8136d8")}</legend>
               <div class="mb-3">
                 <label class="form-label" for="language">{$_('settings.language')}</label>
@@ -1349,9 +1352,8 @@
                   <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} />
                 </div>
               </div>
-            </fieldset>
+              </fieldset>
 
-            {#if topRoute?.screen === 'settings'}
               <TagSettings
                 labels={repositoryLabels}
                 busy={labelBusy || (appState === 'connecting' ? 'connecting' : '')}
@@ -1467,11 +1469,9 @@
       <aside class="note-sidebar">
         <div class="sidebar-heading">
           <div class="sidebar-heading-main">
-            {#if user}
-              <button class="sidebar-profile" on:click={openSettings} aria-label={$_("m.fd7108f831")}>
-                <img class="avatar" src={user.avatar_url} alt={user.login} />
-              </button>
-            {/if}
+            <button class="btn btn-outline-secondary responsive-toolbar-button" on:click={openSettings}>
+              설정
+            </button>
             <div class="sidebar-heading-title">
               <h1>{state === 'open' ? $_("m.70440046a3") : $_("m.e3bf62bb7f")}</h1>
               <span>{$_('dynamic.noteCount', { values: { count: displayedIssueCount } })}</span>
