@@ -75,6 +75,7 @@
   let lockPanelError = '';
   let lockPanelBusy = false;
   let lockSessionExpiring = false;
+  let lockReuseTimer;
   let attachments = [];
   let remoteIssue = issue || allocatedIssue;
   let labels = (issue?.labels || initialDraft?.labels || []).map((label) => label.name);
@@ -149,7 +150,7 @@
     handleExternalPasteRequest();
   }
   $: if (mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin && !lockPanelBusy) {
-    revealLockedNote(lockPin, true);
+    reuseLockPin(lockPin);
   }
   $: if (mounted && lockState === 'unlocked' && !lockPin && activeLockPin && !lockSessionExpiring) {
     expireLockSession();
@@ -170,7 +171,7 @@
 
     mounted = true;
     if (lockState === 'locked') {
-      if (lockPin) revealLockedNote(lockPin, true);
+      if (lockPin) reuseLockPin(lockPin);
       else openLockPanel('unlock');
     }
     handleBackgroundRefreshRequest();
@@ -199,6 +200,7 @@
     if (dirty) persistLocalDraft();
     clearInterval(localTimer);
     clearTimeout(remoteTimer);
+    clearTimeout(lockReuseTimer);
     window.removeEventListener('beforeunload', handlePageExit);
     window.removeEventListener('pagehide', handlePageExit);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -431,6 +433,21 @@
     } finally {
       lockPanelBusy = false;
     }
+  }
+
+  function reuseLockPin(pin) {
+    if (lockState !== 'locked' || lockPanelBusy) return;
+    clearTimeout(lockReuseTimer);
+    lockPanelMode = 'reuse';
+    lockPanelError = '';
+    lockPanelBusy = true;
+    lockReuseTimer = setTimeout(async () => {
+      try {
+        await revealLockedNote(pin, true);
+      } finally {
+        lockPanelBusy = false;
+      }
+    }, 1000);
   }
 
   async function expireLockSession() {
@@ -1331,30 +1348,35 @@
         <form class="note-lock-panel" novalidate on:submit|preventDefault={submitLockPanel}>
           <i class={`bi ${lockPanelMode === 'lock' ? 'bi-lock' : 'bi-shield-lock'}`} aria-hidden="true"></i>
           <strong>{lockPanelMode === 'lock' ? '노트 잠금' : '잠긴 노트'}</strong>
-          <p>{lockPanelMode === 'lock'
-            ? '이 숫자는 저장되지 않으며 현재 세션에서 1시간 동안 사용됩니다.'
-            : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
-          <input
-            id={`note-lock-pin-${editorId}`}
-            class="form-control"
-            type="text"
-            inputmode="numeric"
-            maxlength="6"
-            autocomplete="off"
-            bind:value={lockPanelPin}
-            on:input={handleLockPinInput}
-            aria-label="6자리 잠금 숫자"
-            placeholder="6자리 숫자"
-          />
-          {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
-          <div class="note-lock-actions">
-            {#if lockPanelMode === 'lock'}
-              <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
-            {/if}
-            <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
-              {lockPanelBusy ? '처리 중…' : lockPanelMode === 'lock' ? '잠그기' : '열기'}
-            </button>
-          </div>
+          {#if lockPanelMode === 'reuse'}
+            <BrailleSpinner active />
+            <p>암호 재사용중...</p>
+          {:else}
+            <p>{lockPanelMode === 'lock'
+              ? '이 숫자는 저장되지 않으며 현재 세션에서 1시간 동안 사용됩니다.'
+              : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
+            <input
+              id={`note-lock-pin-${editorId}`}
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="off"
+              bind:value={lockPanelPin}
+              on:input={handleLockPinInput}
+              aria-label="6자리 잠금 숫자"
+              placeholder="6자리 숫자"
+            />
+            {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
+            <div class="note-lock-actions">
+              {#if lockPanelMode === 'lock'}
+                <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
+              {/if}
+              <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
+                {lockPanelBusy ? '처리 중…' : lockPanelMode === 'lock' ? '잠그기' : '열기'}
+              </button>
+            </div>
+          {/if}
         </form>
       </div>
     {/if}
