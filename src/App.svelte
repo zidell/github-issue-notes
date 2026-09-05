@@ -9,6 +9,7 @@
   import { _, locale as activeLocale } from 'svelte-i18n';
   import { LOCALE_OPTIONS, setAppLocale } from './lib/i18n.js';
   import { firstLinePreview, markdownToPlainText } from './lib/notes.js';
+  import { isLockedTitle } from './lib/note-lock.js';
   import {
     createIssue,
     createLabel,
@@ -27,6 +28,7 @@
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
   const BACKGROUND_REFRESH_MS = 60 * 60 * 1000;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const LOCK_SESSION_MS = 60 * 60 * 1000;
   const router = createStackRouter({ mode: 'hashbang', escToBack: true });
   const newContextTarget = externalLinkTarget();
 
@@ -80,6 +82,8 @@
   let pendingRouteTransition = null;
   let tokenInput;
   let hasConfirmedPatStorage = false;
+  let lockPin = '';
+  let lockSessionTimer;
 
   $: emptyMessage = query
     ? $_("m.e9cc6d0e9a")
@@ -103,6 +107,14 @@
   $: displayedIssueCount = pendingNote && state === 'open' && !query && pendingMatchesLabel
     ? Math.max(totalIssues, pendingNote.countBaseline + 1)
     : totalIssues;
+
+  function setLockSession(pin) {
+    clearTimeout(lockSessionTimer);
+    lockPin = pin;
+    lockSessionTimer = setTimeout(() => {
+      lockPin = '';
+    }, LOCK_SESSION_MS);
+  }
 
   onMount(() => {
     router.init();
@@ -1424,7 +1436,9 @@
                   <span
                     class="note-row-preview"
                     class:auto-title-preview={titleMode === 'first-line'}
-                  >{titleMode === 'first-line' ? autoTitleExcerpt(issue.body) : excerpt(issue.body)}</span>
+                  >{isLockedTitle(issue.title)
+                    ? titleMode === 'first-line' ? markdownToPlainText(issue.title) : '잠금된 노트입니다'
+                    : titleMode === 'first-line' ? autoTitleExcerpt(issue.body) : excerpt(issue.body)}</span>
                   <span class="note-row-meta">
                     {issue.local ? $_("m.6f65454664") : `#${issue.number} · ${formatDate(issue.updated_at)}`}
                   </span>
@@ -1496,6 +1510,8 @@
               fontSize={editorFontSize}
               lineHeight={editorLineHeight}
               {autoSaveSeconds}
+              {lockPin}
+              onSetLockSession={setLockSession}
               paused={topRoute?.screen === 'settings' || route !== contentRoute}
               availableLabels={repositoryLabels}
               {labelMutation}

@@ -7,6 +7,14 @@
   import TagPicker from './TagPicker.svelte';
   import { automaticTitle, linkAtCursor, shortenMiddle } from './notes.js';
   import {
+    addLockToTitle,
+    decryptLockedBody,
+    encryptLockedBody,
+    isLockedTitle,
+    normalizeLockPin,
+    removeLockFromTitle
+  } from './note-lock.js';
+  import {
     createAttachmentComment,
     createIssue,
     createLabel,
@@ -48,14 +56,25 @@
   export let onLabelsAvailable = () => {};
   export let onMove = () => {};
   export let onBack = () => {};
+  export let lockPin = '';
+  export let onSetLockSession = () => {};
 
   const DRAFTS_KEY = 'issue-note.drafts.v1';
   const MAX_ATTACHMENTS = 30;
   const draftId = issue ? `issue.${issue.number}` : 'new';
   const newContextTarget = externalLinkTarget();
 
-  let title = issue?.title || initialDraft?.title || '';
-  let body = issue?.body || initialDraft?.body || '';
+  const initiallyLocked = isLockedTitle(issue?.title);
+  let title = removeLockFromTitle(issue?.title || initialDraft?.title || '');
+  let body = initiallyLocked ? '' : issue?.body || initialDraft?.body || '';
+  let encryptedBody = initiallyLocked ? issue?.body || '' : '';
+  let lockState = initiallyLocked ? 'locked' : 'plain';
+  let activeLockPin = '';
+  let lockPanelMode = '';
+  let lockPanelPin = '';
+  let lockPanelError = '';
+  let lockPanelBusy = false;
+  let lockSessionExpiring = false;
   let attachments = [];
   let remoteIssue = issue || allocatedIssue;
   let labels = (issue?.labels || initialDraft?.labels || []).map((label) => label.name);
@@ -129,6 +148,12 @@
   $: if (mounted && !paused && externalPasteRequest?.id > handledExternalPasteRequest) {
     handleExternalPasteRequest();
   }
+  $: if (mounted && lockState === 'locked' && lockPin && lockPin !== activeLockPin && !lockPanelBusy) {
+    revealLockedNote(lockPin, true);
+  }
+  $: if (mounted && lockState === 'unlocked' && !lockPin && activeLockPin && !lockSessionExpiring) {
+    expireLockSession();
+  }
 
   onMount(() => {
     const recovered = archived || ignoreRecoveredDraft ? null : readDraft();
@@ -144,6 +169,10 @@
     }
 
     mounted = true;
+    if (lockState === 'locked') {
+      if (lockPin) revealLockedNote(lockPin, true);
+      else openLockPanel('unlock');
+    }
     handleBackgroundRefreshRequest();
 
     localTimer = setInterval(() => {
@@ -192,6 +221,10 @@
 
   function persistLocalDraft() {
     if (!dirty) return;
+    if (lockState !== 'plain') {
+      removeLocalDraft();
+      return;
+    }
     const store = draftStore();
     store[repo] ||= {};
     store[repo][draftId] = { title, body, labels, savedAt: Date.now() };
@@ -222,7 +255,9 @@
     const targetIssue = issue || remoteIssue;
     const note = currentNote();
     if (!targetIssue?.number || !note.title) return;
-    updateIssue(token, repo, targetIssue.number, note, requestOptions).catch(() => {
+    noteForRemote(note).then((remoteNote) => (
+      updateIssue(token, repo, targetIssue.number, remoteNote, requestOptions)
+    )).catch(() => {
       // 종료 중 요청이 실패해도 동기 저장된 로컬 초안으로 다음 실행 때 복구한다.
     });
   }
@@ -240,7 +275,7 @@
   }
 
   function changed() {
-    if (archived) return;
+    if (archived || lockState === 'locked') return;
     if (titleMode === 'first-line') title = automaticTitle(body);
     dirty = true;
     saveFailed = false;
@@ -257,8 +292,10 @@
   function draftPayload() {
     const resolvedTitle = titleMode === 'first-line' ? automaticTitle(body) : title.trim();
     return {
-      title: resolvedTitle || $_("m.2b7b05c002"),
-      body,
+      title: lockState === 'plain'
+        ? resolvedTitle || $_("m.2b7b05c002")
+        : addLockToTitle(resolvedTitle || $_("m.2b7b05c002")),
+      body: lockState === 'plain' ? body : encryptedBody,
       labels: labels.map((name) => ({ name })),
       updated_at: new Date().toISOString()
     };
@@ -286,6 +323,112 @@
       body: note.body,
       labels: note.labels
     });
+  }
+
+  async function noteForRemote(note) {
+    if (lockState === 'plain') return note;
+    if (lockState === 'locked') {
+      return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
+    }
+    if (!activeLockPin) throw new Error('잠금 세션이 만료되었습니다.');
+    encryptedBody = await encryptLockedBody(note.body, activeLockPin);
+    return { ...note, title: addLockToTitle(note.title), body: encryptedBody };
+  }
+
+  function openLockPanel(mode) {
+    lockPanelMode = mode;
+    lockPanelPin = '';
+    lockPanelError = '';
+    tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
+  }
+
+  function closeLockPanel() {
+    if (lockPanelBusy || lockState === 'locked') return;
+    lockPanelMode = '';
+    lockPanelPin = '';
+    lockPanelError = '';
+  }
+
+  async function submitLockPanel() {
+    const pin = normalizeLockPin(lockPanelPin);
+    if (!pin) {
+      lockPanelError = '6자리 숫자를 입력해 주세요.';
+      return;
+    }
+    lockPanelBusy = true;
+    lockPanelError = '';
+    try {
+      if (lockPanelMode === 'lock') {
+        activeLockPin = pin;
+        onSetLockSession(pin);
+        encryptedBody = await encryptLockedBody(body, pin);
+        lockState = 'unlocked';
+        lockPanelMode = '';
+        removeLocalDraft();
+        changed();
+        clearTimeout(remoteTimer);
+        await saveRemote(true);
+      } else {
+        await revealLockedNote(pin);
+      }
+    } catch (reason) {
+      lockPanelError = reason?.message || '잠금을 처리하지 못했습니다.';
+    } finally {
+      lockPanelBusy = false;
+    }
+  }
+
+  async function revealLockedNote(pin, automatic = false) {
+    if (!encryptedBody || lockState !== 'locked') return;
+    lockPanelBusy = true;
+    try {
+      body = await decryptLockedBody(encryptedBody, pin);
+      activeLockPin = pin;
+      lockState = 'unlocked';
+      lockPanelMode = '';
+      lockPanelPin = '';
+      lockPanelError = '';
+      onSetLockSession(pin);
+      lastRemoteSignature = noteSignature(currentNote());
+    } catch (reason) {
+      if (!automatic) throw reason;
+      activeLockPin = '';
+      lockPanelMode = 'unlock';
+      lockPanelError = reason?.message || '6자리 숫자가 맞지 않습니다.';
+    } finally {
+      lockPanelBusy = false;
+    }
+  }
+
+  async function expireLockSession() {
+    lockSessionExpiring = true;
+    try {
+      if (dirty && activeLockPin) {
+        clearTimeout(remoteTimer);
+        await saveRemote(true, true);
+      }
+    } finally {
+      activeLockPin = '';
+      body = '';
+      lockState = 'locked';
+      lockPanelMode = 'unlock';
+      lockPanelPin = '';
+      lockPanelError = '잠금 시간이 만료되었습니다. 6자리 숫자를 다시 입력해 주세요.';
+      lockSessionExpiring = false;
+    }
+  }
+
+  async function removeLock() {
+    if (lockState !== 'unlocked') {
+      openLockPanel('unlock');
+      return;
+    }
+    lockState = 'plain';
+    encryptedBody = '';
+    activeLockPin = '';
+    changed();
+    clearTimeout(remoteTimer);
+    await saveRemote(true);
   }
 
   async function resolveRemoteIssue() {
@@ -338,11 +481,13 @@
       }
 
       const targetIssue = issue || await resolveRemoteIssue();
+      const remoteNote = await noteForRemote(note);
       const saved = targetIssue
-        ? await updateIssue(token, repo, targetIssue.number, note, requestOptions)
-        : await createIssue(token, repo, note, requestOptions);
+        ? await updateIssue(token, repo, targetIssue.number, remoteNote, requestOptions)
+        : await createIssue(token, repo, remoteNote, requestOptions);
 
       remoteIssue = saved;
+      if (lockState !== 'plain') encryptedBody = saved.body || encryptedBody;
       lastRemoteSignature = signature;
       const hasNewerChanges = savingRevision !== revision || noteSignature(currentNote()) !== signature;
       if (issue) onSaved(saved, hasNewerChanges ? draftPayload() : null);
@@ -426,18 +571,28 @@
         body: refreshed.body || '',
         labels: (refreshed.labels || []).map((label) => label.name)
       });
-      if (background && refreshedSignature === startingSignature) {
+      const currentRemoteSignature = remoteIssue ? noteSignature({
+        title: remoteIssue.title || '',
+        body: remoteIssue.body || '',
+        labels: (remoteIssue.labels || []).map((label) => label.name)
+      }) : '';
+      if (background && refreshedSignature === currentRemoteSignature) {
         remoteIssue = refreshed;
         lastRemoteSignature = refreshedSignature;
         return;
       }
       remoteIssue = refreshed;
-      title = refreshed.title || '';
-      body = refreshed.body || '';
+      const refreshedLocked = isLockedTitle(refreshed.title);
+      title = removeLockFromTitle(refreshed.title || '');
+      encryptedBody = refreshedLocked ? refreshed.body || '' : '';
+      body = refreshedLocked ? '' : refreshed.body || '';
+      lockState = refreshedLocked ? 'locked' : 'plain';
+      activeLockPin = '';
       labels = (refreshed.labels || []).map((label) => label.name);
+      if (refreshedLocked && lockPin) await revealLockedNote(lockPin, true);
       dirty = false;
       revision += 1;
-      lastRemoteSignature = noteSignature({ title, body, labels });
+      lastRemoteSignature = noteSignature(currentNote());
       removeLocalDraft();
       onRefreshed(refreshed);
 
@@ -907,7 +1062,7 @@
       >
         <i class="bi bi-arrow-left" aria-hidden="true"></i><span class="mobile-back-label"> {$_("m.a1fffaaafb")}</span>
       </button>
-      <span>{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
+      <span>{lockState === 'locked' ? '🔒 ' : lockState === 'unlocked' ? '🔐 ' : ''}{issue ? `#${issue.number}` : $_("m.2b7b05c002")}</span>
       {#if showSaveStatus}
         <span class="save-status" aria-live="polite">
           <BrailleSpinner active={saving} />
@@ -991,6 +1146,16 @@
         </div>
         {#if issue}
           <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
+          {#if !archived}
+            <button
+              type="button"
+              class="dropdown-item"
+              on:click={() => lockState === 'plain' ? openLockPanel('lock') : removeLock()}
+            >
+              <i class={`bi ${lockState === 'plain' ? 'bi-lock' : 'bi-unlock'}`} aria-hidden="true"></i>
+              {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
+            </button>
+          {/if}
           <button
             type="button"
             class="dropdown-item detail-toolbar-desktop-delete"
@@ -1102,7 +1267,7 @@
         placeholder={$_("m.768e0c1c69")}
         maxlength="256"
         aria-label={$_("m.45e6c4d69d")}
-        readonly={archived}
+        readonly={archived || lockState === 'locked'}
         on:blur={() => flushRemoteSave()}
       />
     {/if}
@@ -1110,6 +1275,7 @@
       bind:this={bodyInput}
       class="inline-body"
       class:is-dragging-files={draggingFiles}
+      class:is-lock-protected={lockState === 'unlocked'}
       bind:value={body}
       on:input={handleBodyInput}
       on:keydown={handleEditorKeydown}
@@ -1125,8 +1291,41 @@
       on:drop={handleDrop}
       placeholder={titleMode === 'first-line' ? $_("m.fd0b5408d9") : $_("m.5f35b29acf")}
       aria-label={$_("m.6aa90334da")}
-      readonly={archived}
+      readonly={archived || lockState === 'locked'}
     ></textarea>
+    {#if lockState === 'locked' || lockPanelMode}
+      <div class="note-lock-overlay">
+        <form class="note-lock-panel" on:submit|preventDefault={submitLockPanel}>
+          <i class={`bi ${lockPanelMode === 'lock' ? 'bi-lock' : 'bi-shield-lock'}`} aria-hidden="true"></i>
+          <strong>{lockPanelMode === 'lock' ? '노트 잠금' : '잠긴 노트'}</strong>
+          <p>{lockPanelMode === 'lock'
+            ? '이 숫자는 저장되지 않으며 현재 세션에서 1시간 동안 사용됩니다.'
+            : '내용을 보려면 계정에서 사용한 6자리 숫자를 입력하세요.'}</p>
+          <input
+            id={`note-lock-pin-${editorId}`}
+            class="form-control"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            autocomplete="off"
+            bind:value={lockPanelPin}
+            on:input={() => { lockPanelPin = lockPanelPin.replace(/\D/g, '').slice(0, 6); lockPanelError = ''; }}
+            aria-label="6자리 잠금 숫자"
+            placeholder="6자리 숫자"
+          />
+          {#if lockPanelError}<span class="note-lock-error">{lockPanelError}</span>{/if}
+          <div class="note-lock-actions">
+            {#if lockPanelMode === 'lock'}
+              <button type="button" class="btn btn-outline-secondary" on:click={closeLockPanel}>취소</button>
+            {/if}
+            <button type="submit" class="btn btn-primary" disabled={lockPanelBusy || lockPanelPin.length !== 6}>
+              {lockPanelBusy ? '처리 중…' : lockPanelMode === 'lock' ? '잠그기' : '열기'}
+            </button>
+          </div>
+        </form>
+      </div>
+    {/if}
     {#if activeLink}
       <a
         bind:this={linkTooltip}
