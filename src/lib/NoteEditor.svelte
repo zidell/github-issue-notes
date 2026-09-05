@@ -378,6 +378,8 @@
       }
     } catch (reason) {
       lockPanelError = reason?.message || '잠금을 처리하지 못했습니다.';
+      lockPanelPin = '';
+      tick().then(() => document.querySelector(`#note-lock-pin-${editorId}`)?.focus());
     } finally {
       lockPanelBusy = false;
     }
