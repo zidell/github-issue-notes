@@ -45,6 +45,7 @@
   export let lineHeight = 1.7;
   export let autoSaveSeconds = 5;
   export let paused = false;
+  export let readOnly = false;
   export let availableLabels = [];
   export let labelMutation = null;
   export let onSaved = () => {};
@@ -123,7 +124,8 @@
     mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
   }[font] || 'sans-serif';
   $: viewedAttachment = viewerIndex >= 0 ? attachments[viewerIndex] : null;
-  $: compactStatus = archived
+  $: editable = !archived && !readOnly;
+  $: compactStatus = !editable
     ? $_("m.601dcc1c87")
     : saveFailed
       ? $_("m.0a44446762")
@@ -132,7 +134,7 @@
         : issue
           ? $_("m.c0ae8f6ea8")
           : $_("m.2b7b05c002");
-  $: showSaveStatus = archived || saveFailed || saving || dirty || !issue;
+  $: showSaveStatus = !editable || saveFailed || saving || dirty || !issue;
   $: if (!issue && allocatedIssue?.number && remoteIssue?.number !== allocatedIssue.number) {
     remoteIssue = allocatedIssue;
   }
@@ -157,7 +159,7 @@
   }
 
   onMount(() => {
-    const recovered = archived || ignoreRecoveredDraft ? null : readDraft();
+    const recovered = !editable || ignoreRecoveredDraft ? null : readDraft();
     if (recovered) {
       title = recovered.title;
       body = recovered.body;
@@ -183,7 +185,7 @@
     window.addEventListener('pagehide', handlePageExit);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if (!issue && !archived && !paused) {
+    if (!issue && editable && !paused) {
       tick().then(() => bodyInput?.focus());
     }
 
@@ -277,7 +279,7 @@
   }
 
   function changed() {
-    if (archived || lockState === 'locked') return;
+    if (!editable || lockState === 'locked') return;
     if (titleMode === 'first-line') title = automaticTitle(body);
     dirty = true;
     saveFailed = false;
@@ -666,7 +668,7 @@
   }
 
   async function uploadFiles(fileList) {
-    if (archived) return;
+    if (!editable) return;
     if (uploadBatchActive) {
       error = $_("m.12c0dff05d");
       return;
@@ -751,13 +753,13 @@
   }
 
   function handleDragEnter(event) {
-    if (archived || !hasDraggedFiles(event)) return;
+    if (!editable || !hasDraggedFiles(event)) return;
     event.preventDefault();
     draggingFiles = true;
   }
 
   function handleDragOver(event) {
-    if (archived || !hasDraggedFiles(event)) return;
+    if (!editable || !hasDraggedFiles(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     draggingFiles = true;
@@ -769,7 +771,7 @@
   }
 
   function handleDrop(event) {
-    if (archived || !hasDraggedFiles(event)) return;
+    if (!editable || !hasDraggedFiles(event)) return;
     event.preventDefault();
     draggingFiles = false;
     const files = Array.from(event.dataTransfer?.files || []);
@@ -777,7 +779,7 @@
   }
 
   function handleEditorKeydown(event) {
-    if (archived || event.key.toLocaleLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey)) return;
+    if (!editable || event.key.toLocaleLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey)) return;
     event.preventDefault();
     clearTimeout(remoteTimer);
     saveRemote(true);
@@ -916,7 +918,7 @@
   }
 
   async function removeAttachment(attachment) {
-    if (archived || deletingPath) return;
+    if (!editable || deletingPath) return;
     if (!confirm($_('dynamic.deleteAttachmentConfirm', { values: { name: attachment.name } }))) return;
     deletingPath = attachment.path;
     error = '';
@@ -1078,7 +1080,7 @@
   }
 
   function addTag(name) {
-    if (!name || hasLabel(name) || archived) return;
+    if (!name || hasLabel(name) || !editable) return;
     labels = [...labels, name];
     changed();
   }
@@ -1098,7 +1100,7 @@
   }
 
   function removeTag(name) {
-    if (archived) return;
+    if (!editable) return;
     labels = labels.filter((label) => label !== name);
     changed();
   }
@@ -1124,7 +1126,7 @@
         </span>
       {/if}
     </div>
-    {#if !archived}
+    {#if editable}
       <input
         bind:this={fileInput}
         class="visually-hidden"
@@ -1136,7 +1138,7 @@
       />
     {/if}
     <div class="detail-toolbar-actions detail-toolbar-actions-desktop">
-      {#if !archived}
+      {#if editable}
         <TagPicker
           toolbar
           {availableLabels}
@@ -1144,7 +1146,7 @@
           onSelect={addTag}
         />
       {/if}
-      {#if !archived}
+      {#if editable}
         <label
           class="btn btn-sm btn-outline-secondary"
           class:disabled={uploadBatchActive || attachments.length >= MAX_ATTACHMENTS}
@@ -1156,7 +1158,7 @@
       {/if}
     </div>
     <div class="detail-toolbar-actions detail-toolbar-actions-mobile">
-      {#if !archived}
+      {#if editable}
         <TagPicker
           bind:this={mobileTagPicker}
           toolbar
@@ -1186,7 +1188,7 @@
       ><i class="bi bi-three-dots-vertical" aria-hidden="true"></i></button>
       <div class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
         <div class="detail-toolbar-mobile-actions">
-          {#if issue}
+          {#if issue && !readOnly}
             <button
               type="button"
               class="dropdown-item"
@@ -1199,7 +1201,7 @@
         </div>
         {#if issue}
           <div class="dropdown-divider detail-toolbar-mobile-divider"></div>
-          {#if !archived}
+          {#if editable}
             <button
               type="button"
               class="dropdown-item"
@@ -1209,14 +1211,16 @@
               {lockState === 'plain' ? '잠금' : lockState === 'locked' ? '잠금 열기' : '잠금 풀기'}
             </button>
           {/if}
-          <button
-            type="button"
-            class="dropdown-item detail-toolbar-desktop-delete"
-            on:click={() => onMove(issue)}
-          >
-            <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
-            {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
-          </button>
+          {#if !readOnly}
+            <button
+              type="button"
+              class="dropdown-item detail-toolbar-desktop-delete"
+              on:click={() => onMove(issue)}
+            >
+              <i class={`bi ${archived ? 'bi-arrow-counterclockwise' : 'bi-trash3'}`} aria-hidden="true"></i>
+              {archived ? $_("m.3cbe6d6b9a") : $_("m.f6fdbe48dc")}
+            </button>
+          {/if}
           <a class="dropdown-item" href={issue.html_url} target={newContextTarget} rel="noreferrer">
             <i class="bi bi-github" aria-hidden="true"></i> {$_('dynamic.viewOnGitHub')}
           </a>
@@ -1257,7 +1261,7 @@
                 {/if}
                 <span class="attachment-name" title={attachment.name}>{attachment.name}</span>
               </button>
-              {#if !archived}
+              {#if editable}
                 <button
                   type="button"
                   class="attachment-delete"
@@ -1273,7 +1277,7 @@
               {/if}
             </div>
           {/each}
-          {#if !archived && attachments.length < MAX_ATTACHMENTS}
+          {#if editable && attachments.length < MAX_ATTACHMENTS}
             <label
               class="attachment-add-tile"
               class:disabled={uploadBatchActive}
@@ -1296,14 +1300,14 @@
         {#each labels as label (label)}
           <span class="editor-tag" style={`--tag-color:${tagColor(label)}`}>
             #{label}
-            {#if !archived}
+            {#if editable}
               <button type="button" on:click={() => removeTag(label)} aria-label={$_('dynamic.removeTag', { values: { name: label } })}>
                 <i class="bi bi-x" aria-hidden="true"></i>
               </button>
             {/if}
           </span>
         {/each}
-        {#if !archived}
+        {#if editable}
           <TagPicker
             {availableLabels}
             selectedLabels={labels}
@@ -1321,7 +1325,7 @@
         placeholder={$_("m.768e0c1c69")}
         maxlength="256"
         aria-label={$_("m.45e6c4d69d")}
-        readonly={archived || lockState === 'locked'}
+        readonly={!editable || lockState === 'locked'}
         on:blur={() => flushRemoteSave()}
       />
     {/if}
@@ -1348,7 +1352,7 @@
       autocorrect="off"
       autocapitalize="none"
       spellcheck="false"
-      readonly={archived || lockState === 'locked'}
+      readonly={!editable || lockState === 'locked'}
     ></textarea>
     {#if lockState === 'locked' || lockPanelMode}
       <div class="note-lock-overlay">
@@ -1426,7 +1430,7 @@
             <i class="bi bi-download" aria-hidden="true"></i> {$_("m.a479c9c34e")}
           </a>
         {/if}
-        {#if !archived}
+        {#if editable}
           <button type="button" on:click={() => removeAttachment(viewedAttachment)}>
             <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.f6fdbe48dc")}
           </button>

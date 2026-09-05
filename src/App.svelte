@@ -26,7 +26,10 @@
 
   const STORAGE_KEY = 'issue-note.settings.v1';
   const ATTACHMENT_PRUNE_STORAGE_KEY = 'issue-note.attachment-prune.v1';
-  const BACKGROUND_REFRESH_MS = 60 * 60 * 1000;
+  const BACKGROUND_REFRESH_DEFAULT_MINUTES = 60;
+  const BACKGROUND_REFRESH_OPTIONS = [0, 5, 15, 30, 60, 180];
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
   const ATTACHMENT_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
   const LOCK_SESSION_MS = 60 * 60 * 1000;
   const SIDEBAR_LOAD_MORE_THRESHOLD_PX = 160;
@@ -69,6 +72,7 @@
   let editorLineHeight = 1.7;
   let autoSaveSeconds = 5;
   let issuePageSize = 30;
+  let backgroundRefreshMinutes = BACKGROUND_REFRESH_DEFAULT_MINUTES;
   let languagePreference = 'auto';
   let settingsSnapshot = null;
   let backgroundRefreshTimer;
@@ -94,6 +98,14 @@
   let hasConfirmedPatStorage = false;
   let lockPin = '';
   let lockSessionTimer;
+  let selectedIssueIds = new Set();
+  let selectionAnchorId = null;
+  let longPressTimer;
+  let longPressStart = null;
+  let suppressIssueClickId = null;
+  let suppressIssueClickTimer;
+
+  $: selectionMode = selectedIssueIds.size > 0;
 
   $: emptyMessage = appliedQuery
     ? $_("m.e9cc6d0e9a")
@@ -219,6 +231,7 @@
       editorLineHeight = Number(saved.preferences?.editorLineHeight) || 1.7;
       autoSaveSeconds = clampNumber(saved.preferences?.autoSaveSeconds, 3, 30, 5);
       issuePageSize = clampNumber(saved.preferences?.issuePageSize, 10, 100, 30);
+      backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(saved.preferences?.backgroundRefreshMinutes);
       const savedLanguage = saved.preferences?.language || 'auto';
       languagePreference = LOCALE_OPTIONS.some((option) => option.value === savedLanguage) ? savedLanguage : 'auto';
       setAppLocale(languagePreference);
@@ -232,12 +245,12 @@
       appState = 'setup';
     }
 
-    backgroundRefreshTimer = setInterval(() => {
-      if (appState === 'ready' && topRoute?.screen !== 'settings') loadIssues(true);
-    }, BACKGROUND_REFRESH_MS);
+    restartBackgroundRefreshTimer();
 
     return () => {
       clearInterval(backgroundRefreshTimer);
+      clearTimeout(longPressTimer);
+      clearTimeout(suppressIssueClickTimer);
       clearTimeout(toastTimer);
       window.removeEventListener('keydown', handleGlobalKeydown);
       window.removeEventListener('paste', handleGlobalPaste);
@@ -304,7 +317,16 @@
       JSON.stringify({
         repo: normalizedRepo,
         token: rememberToken ? token : '',
-        preferences: { titleMode, editorFont, editorFontSize, editorLineHeight, autoSaveSeconds, issuePageSize, language: languagePreference }
+        preferences: {
+          titleMode,
+          editorFont,
+          editorFontSize,
+          editorLineHeight,
+          autoSaveSeconds,
+          issuePageSize,
+          backgroundRefreshMinutes,
+          language: languagePreference
+        }
       })
     );
   }
@@ -313,6 +335,19 @@
     const number = Number(value);
     if (!Number.isFinite(number)) return fallback;
     return Math.min(maximum, Math.max(minimum, number));
+  }
+
+  function normalizeBackgroundRefreshMinutes(value) {
+    const minutes = Number(value);
+    return BACKGROUND_REFRESH_OPTIONS.includes(minutes) ? minutes : BACKGROUND_REFRESH_DEFAULT_MINUTES;
+  }
+
+  function restartBackgroundRefreshTimer() {
+    clearInterval(backgroundRefreshTimer);
+    if (!backgroundRefreshMinutes) return;
+    backgroundRefreshTimer = setInterval(() => {
+      if (appState === 'ready' && topRoute?.screen !== 'settings') loadIssues(true);
+    }, backgroundRefreshMinutes * 60 * 1000);
   }
 
   function shouldPruneExpiredAttachments() {
@@ -443,6 +478,7 @@
       user = result.user;
       repository = result.repository;
       persistSettings(result.repo);
+      restartBackgroundRefreshTimer();
       if (showSuccess) notice = $_("m.2273eb0763");
       await Promise.all([loadIssues(), loadRepositoryLabels()]);
       appState = 'ready';
@@ -486,6 +522,7 @@
         issuePage = 1;
         hasMoreIssues = result.hasMore;
       }
+      reconcileIssueSelection(issues);
       if (result.totalCount !== null) totalIssues = result.totalCount;
       applyRoute();
     } catch (reason) {
@@ -604,6 +641,7 @@
 
   async function changeState(nextState) {
     if (state === nextState) return;
+    clearIssueSelection();
     state = nextState;
     query = '';
     appliedQuery = '';
@@ -692,6 +730,11 @@
   }
 
   function handleGlobalKeydown(event) {
+    if (event.key === 'Escape' && selectionMode) {
+      event.preventDefault();
+      clearIssueSelection();
+      return;
+    }
     if (
       appState !== 'ready'
       || topRoute?.screen === 'settings'
@@ -774,6 +817,142 @@
       issueRefreshRequests = { [issue.number]: ++issueRefreshSequence };
     }
     router.navigate(issue.local ? 'new' : `note.${issue.number}`);
+  }
+
+  function beginIssueLongPress(event, issue) {
+    if (selectionMode || issue.local || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    cancelIssueLongPress();
+    longPressStart = {
+      pointerId: event.pointerId,
+      issueId: issue.id,
+      x: event.clientX,
+      y: event.clientY
+    };
+    longPressTimer = setTimeout(() => {
+      if (longPressStart?.issueId !== issue.id) return;
+      selectedIssueIds = new Set([issue.id]);
+      selectionAnchorId = issue.id;
+      suppressIssueClickId = issue.id;
+      clearTimeout(suppressIssueClickTimer);
+      suppressIssueClickTimer = setTimeout(() => {
+        suppressIssueClickId = null;
+      }, 1000);
+      navigator.vibrate?.(20);
+      previewSelectedIssue(issue);
+    }, LONG_PRESS_MS);
+  }
+
+  function trackIssueLongPress(event) {
+    if (!longPressStart || event.pointerId !== longPressStart.pointerId) return;
+    if (
+      Math.abs(event.clientX - longPressStart.x) > LONG_PRESS_MOVE_TOLERANCE_PX
+      || Math.abs(event.clientY - longPressStart.y) > LONG_PRESS_MOVE_TOLERANCE_PX
+    ) cancelIssueLongPress();
+  }
+
+  function cancelIssueLongPress() {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+    longPressStart = null;
+  }
+
+  function finishIssueLongPress(event) {
+    if (longPressStart?.pointerId === event.pointerId) cancelIssueLongPress();
+  }
+
+  function handleIssueContextMenu(event, issue) {
+    if (selectionMode || suppressIssueClickId === issue.id) event.preventDefault();
+  }
+
+  function handleIssueClick(event, issue) {
+    if (suppressIssueClickId === issue.id) {
+      event.preventDefault();
+      suppressIssueClickId = null;
+      clearTimeout(suppressIssueClickTimer);
+      return;
+    }
+    if (selectionMode) {
+      event.preventDefault();
+      if (toggleIssueSelection(issue, event.shiftKey)) previewSelectedIssue(issue);
+      return;
+    }
+    selectNote(issue);
+  }
+
+  function handleIssueLabelClick(event, issue, labelName) {
+    if (suppressIssueClickId === issue.id) {
+      event.preventDefault();
+      suppressIssueClickId = null;
+      clearTimeout(suppressIssueClickTimer);
+      return;
+    }
+    if (selectionMode) {
+      if (toggleIssueSelection(issue, event.shiftKey)) previewSelectedIssue(issue);
+      return;
+    }
+    openLabel(labelName);
+  }
+
+  function toggleIssueSelection(issue, selectRange = false) {
+    if (issue.local) return false;
+    const nextSelected = new Set(selectedIssueIds);
+    if (selectRange && selectionAnchorId !== null) {
+      const selectableIssues = visibleIssues.filter((item) => !item.local);
+      const anchorIndex = selectableIssues.findIndex((item) => item.id === selectionAnchorId);
+      const issueIndex = selectableIssues.findIndex((item) => item.id === issue.id);
+      if (anchorIndex >= 0 && issueIndex >= 0) {
+        const [start, end] = [anchorIndex, issueIndex].sort((a, b) => a - b);
+        for (const item of selectableIssues.slice(start, end + 1)) nextSelected.add(item.id);
+      } else {
+        nextSelected.add(issue.id);
+      }
+    } else if (nextSelected.has(issue.id)) {
+      nextSelected.delete(issue.id);
+    } else {
+      nextSelected.add(issue.id);
+    }
+
+    selectedIssueIds = nextSelected;
+    if (nextSelected.size === 0) selectionAnchorId = null;
+    else if (!selectRange) selectionAnchorId = issue.id;
+    return nextSelected.has(issue.id);
+  }
+
+  function handleIssueSelectionClick(event, issue) {
+    if (toggleIssueSelection(issue, event.shiftKey)) previewSelectedIssue(issue);
+  }
+
+  function previewSelectedIssue(issue) {
+    if (!matchMedia('(min-width: 992px)').matches) return;
+    selectNote(issue);
+  }
+
+  function clearIssueSelection() {
+    cancelIssueLongPress();
+    selectedIssueIds = new Set();
+    selectionAnchorId = null;
+    suppressIssueClickId = null;
+    clearTimeout(suppressIssueClickTimer);
+  }
+
+  function reconcileIssueSelection(nextIssues) {
+    if (!selectedIssueIds.size) return;
+    const availableIds = new Set(nextIssues.filter((issue) => !issue.local).map((issue) => issue.id));
+    const nextSelected = new Set([...selectedIssueIds].filter((id) => availableIds.has(id)));
+    if (nextSelected.size === selectedIssueIds.size) return;
+    selectedIssueIds = nextSelected;
+    if (!nextSelected.has(selectionAnchorId)) selectionAnchorId = nextSelected.values().next().value ?? null;
+  }
+
+  function moveSelectedIssues() {
+    const selectedIssues = visibleIssues.filter((issue) => !issue.local && selectedIssueIds.has(issue.id));
+    if (!selectedIssues.length) {
+      clearIssueSelection();
+      return;
+    }
+    const nextState = state === 'open' ? 'closed' : 'open';
+    clearIssueSelection();
+    for (const issue of selectedIssues) moveIssue(issue, nextState, { confirmAction: false });
   }
 
   function noteRefreshStateChanged(issueNumber, active) {
@@ -947,7 +1126,9 @@
     repo = repository?.full_name || repositoryName(repo)?.fullName || repo.trim();
     autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
+    backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
     persistSettings(repo);
+    restartBackgroundRefreshTimer();
     settingsSnapshot = null;
     labelRenameDrafts = [];
     appState = 'ready';
@@ -966,6 +1147,7 @@
     notice = '';
     autoSaveSeconds = clampNumber(autoSaveSeconds, 3, 30, 5);
     issuePageSize = Math.round(clampNumber(issuePageSize, 10, 100, 30));
+    backgroundRefreshMinutes = normalizeBackgroundRefreshMinutes(backgroundRefreshMinutes);
     const needsConnectionCheck = connectionSettingsChanged();
     if (!needsConnectionCheck && labelRenameDrafts.length === 0) {
       finishLocalSettingsSave();
@@ -1038,8 +1220,12 @@
     else router.navigate('/');
   }
 
-  function moveIssue(issue, nextState) {
-    if (nextState === 'open' && !confirm($_('dynamic.restoreConfirm', { values: { title: issue.title } }))) return;
+  function moveIssue(issue, nextState, { confirmAction = true } = {}) {
+    if (
+      confirmAction
+      && nextState === 'open'
+      && !confirm($_('dynamic.restoreConfirm', { values: { title: issue.title } }))
+    ) return;
 
     error = '';
     const deletionToast = nextState === 'closed' ? showToast($_("m.1fe3b7e75f")) : 0;
@@ -1072,6 +1258,7 @@
   }
 
   function openSettings() {
+    clearIssueSelection();
     settingsRouteOverride = '';
     settingsSnapshot = {
       token,
@@ -1083,6 +1270,7 @@
       editorLineHeight,
       autoSaveSeconds,
       issuePageSize,
+      backgroundRefreshMinutes,
       languagePreference
     };
     error = '';
@@ -1104,6 +1292,7 @@
       editorLineHeight,
       autoSaveSeconds,
       issuePageSize,
+      backgroundRefreshMinutes,
       languagePreference
     } = settingsSnapshot);
     setAppLocale(languagePreference);
@@ -1390,6 +1579,16 @@
                   <input id="issue-page-size" class="form-control" type="number" min="10" max="100" step="1" bind:value={issuePageSize} />
                 </div>
               </div>
+              <div class="mt-3">
+                <label class="form-label" for="background-refresh-minutes">{$_('settings.backgroundRefreshInterval')}</label>
+                <select id="background-refresh-minutes" class="form-select" bind:value={backgroundRefreshMinutes}>
+                  {#each BACKGROUND_REFRESH_OPTIONS as minutes}
+                    <option value={minutes}>
+                      {minutes === 0 ? $_('settings.refreshDisabled') : `${minutes} ${$_('settings.minutes')}`}
+                    </option>
+                  {/each}
+                </select>
+              </div>
               </fieldset>
 
               <TagSettings
@@ -1506,7 +1705,7 @@
     <main class="note-workspace">
       <aside class="note-sidebar">
         <div class="sidebar-heading">
-          <div class="sidebar-heading-main">
+          <div class="sidebar-heading-main" class:is-hidden={selectionMode}>
             {#if user && repositoryIssuesUrl}
               <a
                 class="sidebar-profile"
@@ -1524,11 +1723,21 @@
             </div>
           </div>
           <button
-            class="btn btn-outline-secondary responsive-toolbar-button"
+            class="btn btn-outline-secondary responsive-toolbar-button sidebar-settings-button"
+            class:is-hidden={selectionMode}
             on:click={openSettings}
           >
             <i class="bi bi-gear" aria-hidden="true"></i> {$_('settings.sidebarLabel')}
           </button>
+          <div class="sidebar-selection-toolbar" class:active={selectionMode} aria-hidden={!selectionMode}>
+            <button type="button" class="btn btn-sm btn-outline-danger" on:click={moveSelectedIssues} tabindex={selectionMode ? 0 : -1}>
+              <i class={`bi ${state === 'open' ? 'bi-trash3' : 'bi-arrow-counterclockwise'}`} aria-hidden="true"></i>
+              {state === 'open' ? $_("m.f6fdbe48dc") : $_("m.3cbe6d6b9a")}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" on:click={clearIssueSelection} tabindex={selectionMode ? 0 : -1}>
+              {$_("m.bbfa773e5a")}
+            </button>
+          </div>
         </div>
 
         {#if error}
@@ -1544,10 +1753,10 @@
               style={`--sidebar-tools-offset:${sidebarToolsOffset}px`}
             >
               <div class="state-tabs" role="group" aria-label={$_("m.cd9fe96e05")}>
-                <button class="btn btn-sm" class:active={state === 'open'} on:click={() => changeState('open')}>
+                <button class="btn btn-sm" class:active={state === 'open'} on:click={() => changeState('open')} disabled={selectionMode}>
                   <i class="bi bi-journal-text" aria-hidden="true"></i> {$_("m.70440046a3")}
                 </button>
-                <button class="btn btn-sm" class:active={state === 'closed'} on:click={() => changeState('closed')}>
+                <button class="btn btn-sm" class:active={state === 'closed'} on:click={() => changeState('closed')} disabled={selectionMode}>
                   <i class="bi bi-trash3" aria-hidden="true"></i> {$_("m.e3bf62bb7f")}
                 </button>
               </div>
@@ -1567,10 +1776,11 @@
                     on:input={() => sidebarSuggestionIndex = -1}
                     on:keydown={handleSidebarSearchKeydown}
                     on:blur={() => sidebarSearchFocused = false}
+                    disabled={selectionMode}
                   />
-                  <button class="btn btn-sm" disabled={loading}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
+                  <button class="btn btn-sm" disabled={loading || selectionMode}><i class="bi bi-search" aria-hidden="true"></i> {$_("m.bce0641417")}</button>
                 </form>
-                {#if sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
+                {#if !selectionMode && sidebarSearchFocused && sidebarLabelSuggestions.length > 0}
                   <div class="sidebar-label-suggestions" id="sidebar-label-suggestions" role="listbox">
                     {#each sidebarLabelSuggestions as label, index (label.id || label.name)}
                       <button
@@ -1590,7 +1800,7 @@
               <button
                 class="btn btn-primary btn-sm btn-block w-100"
                 on:click={newNote}
-                disabled={Boolean(pendingNote)}
+                disabled={Boolean(pendingNote) || selectionMode}
               >
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {$_("m.2b7b05c002")}
               </button>
@@ -1602,11 +1812,27 @@
               <article
                 class="note-list-row"
                 class:active={selectedIssue?.id === issue.id}
+                class:selection-mode={selectionMode}
+                class:selected={selectedIssueIds.has(issue.id)}
                 class:is-archived={state === 'closed'}
+                on:pointerdown={(event) => beginIssueLongPress(event, issue)}
+                on:pointermove={trackIssueLongPress}
+                on:pointerup={finishIssueLongPress}
+                on:pointercancel={finishIssueLongPress}
+                on:contextmenu={(event) => handleIssueContextMenu(event, issue)}
               >
+                {#if selectionMode && !issue.local}
+                  <input
+                    class="form-check-input note-row-checkbox"
+                    type="checkbox"
+                    checked={selectedIssueIds.has(issue.id)}
+                    aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
+                    on:click|stopPropagation={(event) => handleIssueSelectionClick(event, issue)}
+                  />
+                {/if}
                 <button
                   class="note-row-hit-area"
-                  on:click={() => selectNote(issue)}
+                  on:click={(event) => handleIssueClick(event, issue)}
                   aria-label={$_('dynamic.openNote', { values: { title: issue.title } })}
                 ></button>
                 <div class="note-row-content">
@@ -1629,7 +1855,7 @@
                       <button
                         type="button"
                         style={`--tag-color:#${labelColor(label)}`}
-                        on:click={() => openLabel(label.name)}
+                        on:click={(event) => handleIssueLabelClick(event, issue, label.name)}
                       >#{label.name}</button>
                     {/each}
                   </div>
@@ -1692,7 +1918,8 @@
               {autoSaveSeconds}
               {lockPin}
               onSetLockSession={setLockSession}
-              paused={topRoute?.screen === 'settings' || route !== contentRoute}
+              paused={topRoute?.screen === 'settings' || route !== contentRoute || selectionMode}
+              readOnly={selectionMode}
               availableLabels={repositoryLabels}
               {labelMutation}
               onSaved={noteSaved}
